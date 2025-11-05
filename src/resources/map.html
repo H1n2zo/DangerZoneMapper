@@ -1,0 +1,253 @@
+<!--
+Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+Click nbfs://nbhost/SystemFileSystem/Templates/Other/html.html to edit this template
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ormoc City Danger Zone Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { width: 100%; height: 100vh; }
+        .custom-popup { font-family: Arial, sans-serif; }
+        .popup-title { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .popup-info { font-size: 12px; }
+        .leaflet-tile-container { image-rendering: -webkit-optimize-contrast; }
+        
+        /* Edit controls styling */
+        .edit-controls {
+            position: absolute;
+            top: 80px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .edit-btn {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .edit-btn:hover { background: #2980b9; }
+        .edit-btn.active { background: #27ae60; }
+        .edit-btn.delete { background: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="edit-controls" id="editControls" style="display:none;">
+        <button class="edit-btn" id="addLandmarkBtn">📍 Add Landmark</button>
+        <button class="edit-btn" id="addHazardBtn">⚠️ Add Hazard Zone</button>
+        <button class="edit-btn delete" id="deleteBtn">🗑️ Delete Mode</button>
+        <button class="edit-btn" id="cancelBtn">❌ Cancel</button>
+    </div>
+    
+    <script>
+        // Initialize map centered on Ormoc City
+        var map = L.map('map', {
+            center: [11.0059, 124.6075],
+            zoom: 13,
+            preferCanvas: true
+        });
+        
+        // Primary tile layer with multiple fallbacks
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19,
+            errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2VjZjBmMSIvPjwvc3ZnPg==',
+            crossOrigin: true
+        });
+        
+        // Fallback tile layer
+        var fallbackLayer = L.tileLayer('https://tiles.wmflabs.org/osm/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        });
+        
+        osmLayer.addTo(map);
+        
+        // If tiles fail to load, switch to fallback
+        osmLayer.on('tileerror', function(error) {
+            console.log('Tile load error, trying fallback...');
+            map.removeLayer(osmLayer);
+            fallbackLayer.addTo(map);
+        });
+        
+        // Layer groups for different categories
+        var landmarkLayer = L.layerGroup().addTo(map);
+        var floodLayer = L.layerGroup().addTo(map);
+        var fireLayer = L.layerGroup().addTo(map);
+        var landslideLayer = L.layerGroup().addTo(map);
+        var stormSurgeLayer = L.layerGroup().addTo(map);
+        
+        // Store all markers and circles for edit mode
+        var allMarkers = [];
+        var allCircles = [];
+        var editMode = null; // 'landmark', 'hazard', 'delete'
+        var tempCircle = null;
+        
+        // Custom icons
+        var landmarkIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzM0OThkYiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12]
+        });
+        
+        var evacuationIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzI3YWU2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cG9seWdvbiBwb2ludHM9IjEyLDIgMjIsMjIgMiwyMiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+',
+            iconSize: [24, 24],
+            iconAnchor: [12, 22],
+            popupAnchor: [0, -22]
+        });
+        
+        // Edit mode functions
+        function enableEditMode() {
+            document.getElementById('editControls').style.display = 'block';
+        }
+        
+        function disableEditMode() {
+            document.getElementById('editControls').style.display = 'none';
+            editMode = null;
+            if (tempCircle) {
+                map.removeLayer(tempCircle);
+                tempCircle = null;
+            }
+            map.off('click');
+        }
+        
+        function setEditMode(mode) {
+            editMode = mode;
+            map.off('click');
+            
+            if (mode === 'landmark') {
+                document.getElementById('addLandmarkBtn').classList.add('active');
+                document.getElementById('addHazardBtn').classList.remove('active');
+                document.getElementById('deleteBtn').classList.remove('active');
+                
+                map.on('click', function(e) {
+                    var name = prompt('Enter landmark name:');
+                    if (name) {
+                        // Send to Java to save in database
+                        if (window.javaCallback) {
+                            window.javaCallback.addLandmark(e.latlng.lat, e.latlng.lng, name);
+                        }
+                    }
+                });
+            } else if (mode === 'hazard') {
+                document.getElementById('addLandmarkBtn').classList.remove('active');
+                document.getElementById('addHazardBtn').classList.add('active');
+                document.getElementById('deleteBtn').classList.remove('active');
+                
+                map.on('click', function(e) {
+                    if (!tempCircle) {
+                        var radius = prompt('Enter radius in meters:', '500');
+                        if (radius) {
+                            radius = parseInt(radius);
+                            tempCircle = L.circle(e.latlng, {
+                                radius: radius,
+                                color: '#f39c12',
+                                fillColor: '#f39c12',
+                                fillOpacity: 0.3
+                            }).addTo(map);
+                            
+                            var hazardType = prompt('Enter hazard type (Flood/Fire/Landslide/Storm Surge):');
+                            var severity = prompt('Enter severity (Low/Medium/High/Critical):');
+                            
+                            if (hazardType && severity) {
+                                // Send to Java to save in database
+                                if (window.javaCallback) {
+                                    window.javaCallback.addHazardZone(e.latlng.lat, e.latlng.lng, radius, hazardType, severity);
+                                }
+                            }
+                            
+                            map.removeLayer(tempCircle);
+                            tempCircle = null;
+                        }
+                    }
+                });
+            } else if (mode === 'delete') {
+                document.getElementById('addLandmarkBtn').classList.remove('active');
+                document.getElementById('addHazardBtn').classList.remove('active');
+                document.getElementById('deleteBtn').classList.add('active');
+                
+                alert('Click on any marker or hazard zone to delete it');
+            }
+        }
+        
+        // Event listeners for edit controls
+        document.getElementById('addLandmarkBtn').addEventListener('click', function() {
+            setEditMode('landmark');
+        });
+        
+        document.getElementById('addHazardBtn').addEventListener('click', function() {
+            setEditMode('hazard');
+        });
+        
+        document.getElementById('deleteBtn').addEventListener('click', function() {
+            setEditMode('delete');
+        });
+        
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            disableEditMode();
+        });
+        
+        // Layer control functions
+        function showAllLayers() {
+            map.addLayer(landmarkLayer);
+            map.addLayer(floodLayer);
+            map.addLayer(fireLayer);
+            map.addLayer(landslideLayer);
+            map.addLayer(stormSurgeLayer);
+        }
+        
+        function showLandmarksOnly() {
+            map.addLayer(landmarkLayer);
+            map.removeLayer(floodLayer);
+            map.removeLayer(fireLayer);
+            map.removeLayer(landslideLayer);
+            map.removeLayer(stormSurgeLayer);
+        }
+        
+        function showHazardsOnly() {
+            map.removeLayer(landmarkLayer);
+            map.addLayer(floodLayer);
+            map.addLayer(fireLayer);
+            map.addLayer(landslideLayer);
+            map.addLayer(stormSurgeLayer);
+        }
+        
+        function toggleLayer(layerName, show) {
+            var layer;
+            switch(layerName) {
+                case 'flood': layer = floodLayer; break;
+                case 'fire': layer = fireLayer; break;
+                case 'landslide': layer = landslideLayer; break;
+                case 'stormSurge': layer = stormSurgeLayer; break;
+            }
+            if (layer) {
+                if (show) map.addLayer(layer);
+                else map.removeLayer(layer);
+            }
+        }
+        
+        function resetView() {
+            map.setView([11.0059, 124.6075], 13);
+        }
+        
+        console.log('Map initialized successfully');
+    </script>
+</body>
+</html>
