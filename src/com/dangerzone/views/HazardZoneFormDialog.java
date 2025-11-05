@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.dangerzone.views;
 
 import com.dangerzone.models.HazardZone;
@@ -142,16 +138,16 @@ public class HazardZoneFormDialog extends Dialog<HazardZone> {
     }
     
     private void populateFields() {
-        zoneNameField.setText(existingZone.getZoneName());
-        barangayField.setText(existingZone.getBarangay());
+        zoneNameField.setText(existingZone.getZoneName() != null ? existingZone.getZoneName() : "");
+        barangayField.setText(existingZone.getBarangay() != null ? existingZone.getBarangay() : "");
         hazardTypeCombo.setValue(existingZone.getHazardType());
         severityCombo.setValue(existingZone.getSeverityLevel());
         latitudeField.setText(String.valueOf(existingZone.getLatitude()));
         longitudeField.setText(String.valueOf(existingZone.getLongitude()));
         radiusField.setText(String.valueOf(existingZone.getRadiusMeters()));
         populationField.setText(String.valueOf(existingZone.getAffectedPopulation()));
-        descriptionArea.setText(existingZone.getDescription());
-        riskFactorsArea.setText(existingZone.getRiskFactors());
+        descriptionArea.setText(existingZone.getDescription() != null ? existingZone.getDescription() : "");
+        riskFactorsArea.setText(existingZone.getRiskFactors() != null ? existingZone.getRiskFactors() : "");
         activeCheckBox.setSelected(existingZone.isActive());
         
         if (existingZone.getDateIdentified() != null) {
@@ -160,12 +156,12 @@ public class HazardZoneFormDialog extends Dialog<HazardZone> {
     }
     
     private boolean validateForm() {
-        if (zoneNameField.getText().trim().isEmpty()) {
+        if (zoneNameField.getText() == null || zoneNameField.getText().trim().isEmpty()) {
             showValidationError("Zone name is required");
             return false;
         }
         
-        if (barangayField.getText().trim().isEmpty()) {
+        if (barangayField.getText() == null || barangayField.getText().trim().isEmpty()) {
             showValidationError("Barangay is required");
             return false;
         }
@@ -213,7 +209,7 @@ public class HazardZoneFormDialog extends Dialog<HazardZone> {
             return false;
         }
         
-        if (!populationField.getText().trim().isEmpty()) {
+        if (populationField.getText() != null && !populationField.getText().trim().isEmpty()) {
             try {
                 int pop = Integer.parseInt(populationField.getText().trim());
                 if (pop < 0) {
@@ -232,36 +228,50 @@ public class HazardZoneFormDialog extends Dialog<HazardZone> {
     private HazardZone createHazardZoneFromForm() {
         HazardZone zone = existingZone != null ? existingZone : new HazardZone();
         
-        if (existingZone != null) {
-            System.out.println("🔧 Editing existing hazard zone - ID: " + existingZone.getZoneId());
-            zone.setZoneId(existingZone.getZoneId()); // Ensure ID is set!
-        }
-        
-        zone.setZoneName(zoneNameField.getText().trim());
-        zone.setBarangay(barangayField.getText().trim());
+        zone.setZoneName(safeGetText(zoneNameField));
+        zone.setBarangay(safeGetText(barangayField));
         zone.setHazardType(hazardTypeCombo.getValue());
         zone.setSeverityLevel(severityCombo.getValue());
         zone.setLatitude(Double.parseDouble(latitudeField.getText().trim()));
         zone.setLongitude(Double.parseDouble(longitudeField.getText().trim()));
         zone.setRadiusMeters(Integer.parseInt(radiusField.getText().trim()));
         
-        if (!populationField.getText().trim().isEmpty()) {
-            zone.setAffectedPopulation(Integer.parseInt(populationField.getText().trim()));
+        String popText = safeGetText(populationField);
+        if (!popText.isEmpty()) {
+            zone.setAffectedPopulation(Integer.parseInt(popText));
         } else {
             zone.setAffectedPopulation(0);
         }
         
-        zone.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
-        zone.setRiskFactors(riskFactorsArea.getText().trim().isEmpty() ? null : riskFactorsArea.getText().trim());
+        String description = safeGetText(descriptionArea);
+        zone.setDescription(description.isEmpty() ? null : description);
+        
+        String riskFactors = safeGetText(riskFactorsArea);
+        zone.setRiskFactors(riskFactors.isEmpty() ? null : riskFactors);
+        
         zone.setActive(activeCheckBox.isSelected());
         
         if (dateIdentifiedPicker.getValue() != null) {
             zone.setDateIdentified(Date.valueOf(dateIdentifiedPicker.getValue()));
         }
         
-        System.out.println("✅ Form data extracted - ID: " + zone.getZoneId() + ", Name: " + zone.getZoneName());
-        
         return zone;
+    }
+    
+    /**
+     * Safely get text from TextField, returning empty string if null
+     */
+    private String safeGetText(TextField field) {
+        String text = field.getText();
+        return text == null ? "" : text.trim();
+    }
+    
+    /**
+     * Safely get text from TextArea, returning empty string if null
+     */
+    private String safeGetText(TextArea area) {
+        String text = area.getText();
+        return text == null ? "" : text.trim();
     }
     
     private void showValidationError(String message) {

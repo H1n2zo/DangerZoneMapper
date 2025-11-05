@@ -141,6 +141,7 @@ public class IncidentManagerDialog extends Stage {
         Button addBtn = new Button("Add New Incident");
         addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
         addBtn.setOnAction(e -> addIncident());
+//        addBtn.getStyleClass().add("success");
         
         Button editBtn = new Button("Edit");
         editBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
@@ -149,12 +150,14 @@ public class IncidentManagerDialog extends Stage {
         Button deleteBtn = new Button("Delete");
         deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         deleteBtn.setOnAction(e -> deleteIncident());
+//        deleteBtn.getStyleClass().add("danger");
         
         Button viewBtn = new Button("View Details");
         viewBtn.setOnAction(e -> viewIncidentDetails());
         
         Button closeBtn = new Button("Close");
         closeBtn.setOnAction(e -> close());
+//        closeBtn.getStyleClass().add("secondary");
         
         box.getChildren().addAll(addBtn, editBtn, deleteBtn, viewBtn, closeBtn);
         

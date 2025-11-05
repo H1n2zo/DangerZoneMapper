@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.dangerzone.views;
 
 import com.dangerzone.models.Incident;
@@ -123,7 +119,7 @@ public class IncidentFormDialog extends Dialog<Incident> {
         if (existingIncident.getIncidentDate() != null) {
             datePicker.setValue(existingIncident.getIncidentDate().toLocalDate());
         }
-        barangayField.setText(existingIncident.getBarangay());
+        barangayField.setText(existingIncident.getBarangay() != null ? existingIncident.getBarangay() : "");
         severityCombo.setValue(existingIncident.getSeverity());
         casualtiesField.setText(String.valueOf(existingIncident.getCasualties()));
         injuriesField.setText(String.valueOf(existingIncident.getInjuries()));
@@ -132,8 +128,8 @@ public class IncidentFormDialog extends Dialog<Incident> {
         if (existingIncident.getEstimatedCost() != null) {
             costField.setText(existingIncident.getEstimatedCost().toString());
         }
-        descriptionArea.setText(existingIncident.getDescription());
-        responseArea.setText(existingIncident.getResponseActions());
+        descriptionArea.setText(existingIncident.getDescription() != null ? existingIncident.getDescription() : "");
+        responseArea.setText(existingIncident.getResponseActions() != null ? existingIncident.getResponseActions() : "");
     }
     
     private boolean validateForm() {
@@ -141,16 +137,16 @@ public class IncidentFormDialog extends Dialog<Incident> {
             showError("Incident type is required");
             return false;
         }
-        if (barangayField.getText().trim().isEmpty()) {
+        if (barangayField.getText() == null || barangayField.getText().trim().isEmpty()) {
             showError("Barangay is required");
             return false;
         }
         try {
-            Integer.parseInt(casualtiesField.getText());
-            Integer.parseInt(injuriesField.getText());
-            Integer.parseInt(familiesField.getText());
-            Integer.parseInt(structuresField.getText());
-            new BigDecimal(costField.getText());
+            Integer.parseInt(safeGetText(casualtiesField));
+            Integer.parseInt(safeGetText(injuriesField));
+            Integer.parseInt(safeGetText(familiesField));
+            Integer.parseInt(safeGetText(structuresField));
+            new BigDecimal(safeGetText(costField));
         } catch (NumberFormatException e) {
             showError("Please enter valid numbers");
             return false;
@@ -161,27 +157,43 @@ public class IncidentFormDialog extends Dialog<Incident> {
     private Incident createIncidentFromForm() {
         Incident incident = existingIncident != null ? existingIncident : new Incident();
         
-        if (existingIncident != null) {
-            System.out.println("🔧 Editing existing incident - ID: " + existingIncident.getIncidentId());
-            incident.setIncidentId(existingIncident.getIncidentId()); // Ensure ID is set!
-        }
-        
         incident.setIncidentType(incidentTypeCombo.getValue());
         incident.setIncidentDate(Date.valueOf(datePicker.getValue()));
-        incident.setBarangay(barangayField.getText().trim());
+        incident.setBarangay(safeGetText(barangayField));
         incident.setSeverity(severityCombo.getValue());
-        incident.setCasualties(Integer.parseInt(casualtiesField.getText()));
-        incident.setInjuries(Integer.parseInt(injuriesField.getText()));
-        incident.setFamiliesAffected(Integer.parseInt(familiesField.getText()));
-        incident.setStructuresDamaged(Integer.parseInt(structuresField.getText()));
-        incident.setEstimatedCost(new BigDecimal(costField.getText()));
-        incident.setDescription(descriptionArea.getText().trim());
-        incident.setResponseActions(responseArea.getText().trim());
+        incident.setCasualties(Integer.parseInt(safeGetText(casualtiesField)));
+        incident.setInjuries(Integer.parseInt(safeGetText(injuriesField)));
+        incident.setFamiliesAffected(Integer.parseInt(safeGetText(familiesField)));
+        incident.setStructuresDamaged(Integer.parseInt(safeGetText(structuresField)));
+        incident.setEstimatedCost(new BigDecimal(safeGetText(costField)));
         
-        System.out.println("✅ Form data extracted - ID: " + incident.getIncidentId() + 
-                      ", Type: " + incident.getIncidentType());
+        String description = safeGetText(descriptionArea);
+        incident.setDescription(description.isEmpty() ? null : description);
+        
+        String response = safeGetText(responseArea);
+        incident.setResponseActions(response.isEmpty() ? null : response);
         
         return incident;
+    }
+    
+    /**
+     * Safely get text from TextField, returning "0" if null or empty for number fields
+     */
+    private String safeGetText(TextField field) {
+        String text = field.getText();
+        if (text == null || text.trim().isEmpty()) {
+            // Return "0" for numeric fields to prevent parsing errors
+            return "0";
+        }
+        return text.trim();
+    }
+    
+    /**
+     * Safely get text from TextArea, returning empty string if null
+     */
+    private String safeGetText(TextArea area) {
+        String text = area.getText();
+        return text == null ? "" : text.trim();
     }
     
     private void showError(String message) {

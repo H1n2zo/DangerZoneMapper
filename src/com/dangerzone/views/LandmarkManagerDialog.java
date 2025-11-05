@@ -10,8 +10,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
-import javafx.scene.web.WebView;
-import javafx.scene.web.WebEngine;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -19,6 +21,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.io.InputStream;
 
 public class LandmarkManagerDialog extends Stage {
     
@@ -27,8 +30,18 @@ public class LandmarkManagerDialog extends Stage {
     private ObservableList<Landmark> landmarkData;
     private ComboBox<String> filterTypeCombo;
     private TextField searchField;
-    private WebView mapView;
-    private WebEngine webEngine;
+    private ImageView mapImageView;
+    private Pane mapOverlayPane;
+    private Label coordsLabel;
+    private Circle selectionMarker;
+    
+    // Map bounds for Ormoc City
+    private static final double MAP_MIN_LAT = 10.85;
+    private static final double MAP_MAX_LAT = 11.20;
+    private static final double MAP_MIN_LNG = 124.45;
+    private static final double MAP_MAX_LNG = 124.80;
+    private static final double MAP_WIDTH = 1920;
+    private static final double MAP_HEIGHT = 988;
     
     // For storing clicked coordinates
     private double selectedLat = 11.0059;
@@ -70,14 +83,17 @@ public class LandmarkManagerDialog extends Stage {
         mapBox.setPadding(new Insets(10));
         Label mapLabel = new Label("🗺 Click on map to select coordinates");
         mapLabel.setStyle("-fx-font-weight: bold;");
-        mapView = createInteractiveMap();
-        VBox.setVgrow(mapView, Priority.ALWAYS);
         
-        Label coordsLabel = new Label("Selected: 11.0059°N, 124.6075°E");
-        coordsLabel.setId("coordsLabel");
-        coordsLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #2c3e50;");
+        ScrollPane mapScrollPane = createInteractiveMap();
+        VBox.setVgrow(mapScrollPane, Priority.ALWAYS);
         
-        mapBox.getChildren().addAll(mapLabel, mapView, coordsLabel);
+        coordsLabel = new Label(String.format("Selected: %.6f°N, %.6f°E", selectedLat, selectedLng));
+        coordsLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #2c3e50; " +
+                            "-fx-padding: 8; -fx-background-color: #ecf0f1; " +
+                            "-fx-border-color: #3498db; -fx-border-width: 2;");
+        coordsLabel.setAlignment(Pos.CENTER);
+        
+        mapBox.getChildren().addAll(mapLabel, mapScrollPane, coordsLabel);
         
         splitPane.getItems().addAll(tableBox, mapBox);
         root.setCenter(splitPane);
@@ -163,137 +179,108 @@ public class LandmarkManagerDialog extends Stage {
         return table;
     }
     
-    private WebView createInteractiveMap() {
-        WebView webView = new WebView();
-        webEngine = webView.getEngine();
-        webEngine.setJavaScriptEnabled(true);
-        
-        String mapHTML = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-            <style>
-                body { margin: 0; padding: 0; }
-                #map { width: 100%; height: 100vh; cursor: crosshair; }
-                .click-marker { 
-                    background: #e74c3c;
-                    border: 2px solid white;
-                    border-radius: 50%;
-                    width: 12px;
-                    height: 12px;
-                }
-            </style>
-        </head>
-        <body>
-            <div id="map"></div>
-            <script>
-                var map = L.map('map').setView([11.0059, 124.6075], 13);
+    private ScrollPane createInteractiveMap() {
+        try {
+            InputStream mapStream = getClass().getResourceAsStream("/resources/ormoc_map.png");
+            if (mapStream != null) {
+                Image mapImage = new Image(mapStream);
+                mapImageView = new ImageView(mapImage);
+                mapImageView.setPreserveRatio(true);
+                mapImageView.setFitWidth(MAP_WIDTH * 0.5); // Scale down for dialog
+                mapImageView.setFitHeight(MAP_HEIGHT * 0.5);
                 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap',
-                    maxZoom: 19
-                }).addTo(map);
+                // Create overlay pane for markers
+                mapOverlayPane = new Pane();
+                mapOverlayPane.setPrefSize(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5);
+                mapOverlayPane.setMaxSize(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5);
                 
-                var clickMarker = null;
-                
-                // Click handler
-                map.on('click', function(e) {
-                    var lat = e.latlng.lat.toFixed(6);
-                    var lng = e.latlng.lng.toFixed(6);
+                // Add mouse tracking
+                mapOverlayPane.setOnMouseMoved(event -> {
+                    double mouseX = event.getX();
+                    double mouseY = event.getY();
                     
-                    // Remove old marker
-                    if (clickMarker) {
-                        map.removeLayer(clickMarker);
-                    }
+                    // Convert pixel to coordinates
+                    double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+                    double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
                     
-                    // Add new marker
-                    clickMarker = L.circleMarker(e.latlng, {
-                        radius: 8,
-                        fillColor: '#e74c3c',
-                        color: 'white',
-                        weight: 2,
-                        fillOpacity: 0.8
-                    }).addTo(map);
+                    double latitude = MAP_MAX_LAT - (mouseY / scaledHeight) * (MAP_MAX_LAT - MAP_MIN_LAT);
+                    double longitude = MAP_MIN_LNG + (mouseX / scaledWidth) * (MAP_MAX_LNG - MAP_MIN_LNG);
                     
-                    clickMarker.bindPopup('<b>Selected Location</b><br>Lat: ' + lat + '<br>Lng: ' + lng).openPopup();
-                    
-                    // Call Java method
-                    if (window.javaHandler) {
-                        window.javaHandler.setCoordinates(lat, lng);
-                    }
+                    coordsLabel.setText(String.format("Hover: %.6f°N, %.6f°E", latitude, longitude));
                 });
                 
-                function showLocation(lat, lng, name) {
-                    map.setView([lat, lng], 15);
-                    L.marker([lat, lng]).addTo(map)
-                        .bindPopup('<b>' + name + '</b>').openPopup();
-                }
-            </script>
-        </body>
-        </html>
-        """;
-        
-        webEngine.loadContent(mapHTML);
-        
-        // Set up JavaScript bridge
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
-                try {
-                    // Create bridge object
-                    webEngine.executeScript(
-                        "window.javaHandler = {" +
-                        "  setCoordinates: function(lat, lng) {" +
-                        "    console.log('Coordinates: ' + lat + ', ' + lng);" +
-                        "  }" +
-                        "};"
-                    );
+                mapOverlayPane.setOnMouseExited(event -> {
+                    updateCoordsLabel();
+                });
+                
+                // Click to select location
+                mapOverlayPane.setOnMouseClicked(event -> {
+                    double mouseX = event.getX();
+                    double mouseY = event.getY();
                     
-                    // Listen for coordinate changes via document title
-                    webEngine.documentProperty().addListener((obsDoc, oldDoc, newDoc) -> {
-                        if (newDoc != null) {
-                            webEngine.executeScript(
-                                "window.javaHandler.setCoordinates = function(lat, lng) {" +
-                                "  document.title = lat + ',' + lng;" +
-                                "};"
-                            );
-                        }
-                    });
+                    double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+                    double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
                     
-                    webEngine.titleProperty().addListener((obsTitle, oldTitle, newTitle) -> {
-                        if (newTitle != null && newTitle.contains(",")) {
-                            String[] coords = newTitle.split(",");
-                            selectedLat = Double.parseDouble(coords[0]);
-                            selectedLng = Double.parseDouble(coords[1]);
-                            updateCoordsLabel();
-                        }
-                    });
-                } catch (Exception e) {
-                    System.err.println("Bridge error: " + e.getMessage());
-                }
+                    selectedLat = MAP_MAX_LAT - (mouseY / scaledHeight) * (MAP_MAX_LAT - MAP_MIN_LAT);
+                    selectedLng = MAP_MIN_LNG + (mouseX / scaledWidth) * (MAP_MAX_LNG - MAP_MIN_LNG);
+                    
+                    updateSelectionMarker(mouseX, mouseY);
+                    updateCoordsLabel();
+                });
+                
+                // Stack map and overlay
+                StackPane mapStack = new StackPane();
+                mapStack.getChildren().addAll(mapImageView, mapOverlayPane);
+                mapStack.setStyle("-fx-background-color: white;");
+                
+                ScrollPane scrollPane = new ScrollPane(mapStack);
+                scrollPane.setFitToWidth(true);
+                scrollPane.setFitToHeight(true);
+                scrollPane.setStyle("-fx-background-color: #ecf0f1;");
+                
+                return scrollPane;
             }
-        });
+        } catch (Exception e) {
+            System.err.println("Failed to load map: " + e.getMessage());
+        }
         
-        return webView;
+        // Fallback
+        ScrollPane scrollPane = new ScrollPane(new Label("Map not found"));
+        return scrollPane;
+    }
+    
+    private void updateSelectionMarker(double x, double y) {
+        // Remove old marker
+        if (selectionMarker != null) {
+            mapOverlayPane.getChildren().remove(selectionMarker);
+        }
+        
+        // Create new marker
+        selectionMarker = new Circle(x, y, 10);
+        selectionMarker.setFill(Color.web("#e74c3c"));
+        selectionMarker.setStroke(Color.WHITE);
+        selectionMarker.setStrokeWidth(3);
+        
+        mapOverlayPane.getChildren().add(selectionMarker);
     }
     
     private void updateCoordsLabel() {
-        Label coordsLabel = (Label) getScene().lookup("#coordsLabel");
-        if (coordsLabel != null) {
-            coordsLabel.setText(String.format("Selected: %.6f°N, %.6f°E", selectedLat, selectedLng));
-        }
+        coordsLabel.setText(String.format("Selected: %.6f°N, %.6f°E", selectedLat, selectedLng));
     }
     
     private void showLandmarkOnMap(Landmark landmark) {
-        String script = String.format(
-            "showLocation(%f, %f, '%s');",
-            landmark.getLatitude(),
-            landmark.getLongitude(),
-            landmark.getName().replace("'", "\\'")
-        );
-        webEngine.executeScript(script);
+        selectedLat = landmark.getLatitude();
+        selectedLng = landmark.getLongitude();
+        
+        // Calculate pixel position
+        double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+        double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
+        
+        double x = ((selectedLng - MAP_MIN_LNG) / (MAP_MAX_LNG - MAP_MIN_LNG)) * scaledWidth;
+        double y = ((MAP_MAX_LAT - selectedLat) / (MAP_MAX_LAT - MAP_MIN_LAT)) * scaledHeight;
+        
+        updateSelectionMarker(x, y);
+        updateCoordsLabel();
     }
     
     private HBox createButtonControls() {
@@ -405,45 +392,31 @@ public class LandmarkManagerDialog extends Stage {
         }
     }
     
-private void editLandmark() {
-    Landmark selected = landmarkTable.getSelectionModel().getSelectedItem();
-    if (selected == null) {
-        showWarning("Please select a landmark to edit");
-        return;
-    }
-    
-    System.out.println("📝 Editing Landmark ID: " + selected.getId() + " - " + selected.getName());
-    
-    LandmarkFormDialog dialog = new LandmarkFormDialog(selected);
-    Optional<Landmark> result = dialog.showAndWait();
-    
-    result.ifPresent(landmark -> {
-        try {
-            System.out.println("💾 Saving changes to Landmark ID: " + landmark.getId());
-            System.out.println("   Name: " + landmark.getName());
-            System.out.println("   Coords: " + landmark.getLatitude() + ", " + landmark.getLongitude());
-            
-            boolean success = landmarkDAO.updateLandmark(landmark);
-            
-            if (success) {
-                showSuccess("Landmark updated successfully!");
-                loadLandmarks(); // Refresh table
-                System.out.println("✅ Landmark updated and table refreshed");
-            } else {
-                showError("Update failed - No rows were affected. Check if landmark ID exists.");
-                System.err.println("❌ Update returned false - no rows affected");
-            }
-        } catch (SQLException e) {
-            showError("Database error: " + e.getMessage());
-            System.err.println("❌ SQLException during update:");
-            e.printStackTrace();
+    private void editLandmark() {
+        Landmark selected = landmarkTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showWarning("Please select a landmark to edit");
+            return;
         }
-    });
-    
-    if (!result.isPresent()) {
-        System.out.println("❌ Edit dialog was cancelled");
+        
+        LandmarkFormDialog dialog = new LandmarkFormDialog(selected);
+        Optional<Landmark> result = dialog.showAndWait();
+        
+        result.ifPresent(landmark -> {
+            try {
+                boolean success = landmarkDAO.updateLandmark(landmark);
+                
+                if (success) {
+                    showSuccess("Landmark updated successfully!");
+                    loadLandmarks();
+                } else {
+                    showError("Update failed - No rows were affected.");
+                }
+            } catch (SQLException e) {
+                showError("Database error: " + e.getMessage());
+            }
+        });
     }
-}
     
     private void deleteLandmark() {
         Landmark selected = landmarkTable.getSelectionModel().getSelectedItem();

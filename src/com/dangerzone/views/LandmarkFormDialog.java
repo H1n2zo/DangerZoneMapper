@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.dangerzone.views;
 
 import com.dangerzone.models.Landmark;
@@ -37,6 +33,7 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
         grid.setVgap(10);
         grid.setPadding(new Insets(20));
         
+        // Initialize all fields with empty strings to prevent null
         nameField = new TextField();
         nameField.setPromptText("Enter landmark name");
         grid.add(new Label("Name:*"), 0, 0);
@@ -123,15 +120,15 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
     }
     
     private void populateFields() {
-        nameField.setText(existingLandmark.getName());
+        nameField.setText(existingLandmark.getName() != null ? existingLandmark.getName() : "");
         typeCombo.setValue(existingLandmark.getType());
-        addressField.setText(existingLandmark.getAddress());
-        barangayField.setText(existingLandmark.getBarangay());
+        addressField.setText(existingLandmark.getAddress() != null ? existingLandmark.getAddress() : "");
+        barangayField.setText(existingLandmark.getBarangay() != null ? existingLandmark.getBarangay() : "");
         latitudeField.setText(String.valueOf(existingLandmark.getLatitude()));
         longitudeField.setText(String.valueOf(existingLandmark.getLongitude()));
-        contactField.setText(existingLandmark.getContactNumber());
-        hoursField.setText(existingLandmark.getOperatingHours());
-        descriptionArea.setText(existingLandmark.getDescription());
+        contactField.setText(existingLandmark.getContactNumber() != null ? existingLandmark.getContactNumber() : "");
+        hoursField.setText(existingLandmark.getOperatingHours() != null ? existingLandmark.getOperatingHours() : "");
+        descriptionArea.setText(existingLandmark.getDescription() != null ? existingLandmark.getDescription() : "");
         evacCheckBox.setSelected(existingLandmark.isEvacuationSite());
         
         if (existingLandmark.getCapacity() != null) {
@@ -141,7 +138,8 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
     }
     
     private boolean validateForm() {
-        if (nameField.getText().trim().isEmpty()) {
+        // Check required fields
+        if (nameField.getText() == null || nameField.getText().trim().isEmpty()) {
             showValidationError("Name is required");
             return false;
         }
@@ -151,11 +149,12 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
             return false;
         }
         
-        if (barangayField.getText().trim().isEmpty()) {
+        if (barangayField.getText() == null || barangayField.getText().trim().isEmpty()) {
             showValidationError("Barangay is required");
             return false;
         }
         
+        // Validate latitude
         try {
             double lat = Double.parseDouble(latitudeField.getText().trim());
             if (lat < 10.5 || lat > 11.5) {
@@ -167,6 +166,7 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
             return false;
         }
         
+        // Validate longitude
         try {
             double lon = Double.parseDouble(longitudeField.getText().trim());
             if (lon < 124.0 || lon > 125.5) {
@@ -178,7 +178,8 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
             return false;
         }
         
-        if (evacCheckBox.isSelected() && !capacityField.getText().trim().isEmpty()) {
+        // Validate capacity if evacuation site
+        if (evacCheckBox.isSelected() && capacityField.getText() != null && !capacityField.getText().trim().isEmpty()) {
             try {
                 int capacity = Integer.parseInt(capacityField.getText().trim());
                 if (capacity <= 0) {
@@ -197,25 +198,37 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
     private Landmark createLandmarkFromForm() {
         Landmark landmark = existingLandmark != null ? existingLandmark : new Landmark();
         
-        if (existingLandmark != null) {
-            System.out.println("🔧 Editing existing landmark - ID: " + existingLandmark.getId());
-            landmark.setId(existingLandmark.getId()); // Ensure ID is set!
-        }
-        
-        landmark.setName(nameField.getText().trim());
+        // Use null-safe getText() with default empty string
+        landmark.setName(safeGetText(nameField));
         landmark.setType(typeCombo.getValue());
-        landmark.setAddress(addressField.getText().trim());
-        landmark.setBarangay(barangayField.getText().trim());
+        
+        // Set address (can be null/empty)
+        String address = safeGetText(addressField);
+        landmark.setAddress(address.isEmpty() ? null : address);
+        
+        landmark.setBarangay(safeGetText(barangayField));
         landmark.setLatitude(Double.parseDouble(latitudeField.getText().trim()));
         landmark.setLongitude(Double.parseDouble(longitudeField.getText().trim()));
-        landmark.setContactNumber(contactField.getText().trim().isEmpty() ? null : contactField.getText().trim());
-        landmark.setOperatingHours(hoursField.getText().trim().isEmpty() ? null : hoursField.getText().trim());
-        landmark.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
+        
+        // Set contact (can be null/empty)
+        String contact = safeGetText(contactField);
+        landmark.setContactNumber(contact.isEmpty() ? null : contact);
+        
+        // Set operating hours (can be null/empty)
+        String hours = safeGetText(hoursField);
+        landmark.setOperatingHours(hours.isEmpty() ? null : hours);
+        
+        // Set description (can be null/empty)
+        String description = safeGetText(descriptionArea);
+        landmark.setDescription(description.isEmpty() ? null : description);
+        
         landmark.setEvacuationSite(evacCheckBox.isSelected());
         
-        if (!capacityField.getText().trim().isEmpty()) {
+        // Set capacity
+        String capacityText = safeGetText(capacityField);
+        if (!capacityText.isEmpty()) {
             try {
-                landmark.setCapacity(Integer.parseInt(capacityField.getText().trim()));
+                landmark.setCapacity(Integer.parseInt(capacityText));
             } catch (NumberFormatException e) {
                 landmark.setCapacity(null);
             }
@@ -223,9 +236,23 @@ public class LandmarkFormDialog extends Dialog<Landmark> {
             landmark.setCapacity(null);
         }
         
-        System.out.println("✅ Form data extracted - ID: " + landmark.getId() + ", Name: " + landmark.getName());
-        
         return landmark;
+    }
+    
+    /**
+     * Safely get text from TextField, returning empty string if null
+     */
+    private String safeGetText(TextField field) {
+        String text = field.getText();
+        return text == null ? "" : text.trim();
+    }
+    
+    /**
+     * Safely get text from TextArea, returning empty string if null
+     */
+    private String safeGetText(TextArea area) {
+        String text = area.getText();
+        return text == null ? "" : text.trim();
     }
     
     private void showValidationError(String message) {

@@ -156,25 +156,24 @@ public class IncidentDAO {
         }
     }
     
-    private Incident extractIncidentFromResultSet(ResultSet rs) throws SQLException {
-        Incident incident = new Incident();
-        incident.setIncidentId(rs.getInt("incident_id"));
-        incident.setZoneId((Integer) rs.getObject("zone_id"));
-        incident.setIncidentType(rs.getString("incident_type"));
-        incident.setIncidentDate(rs.getDate("incident_date"));
-        incident.setBarangay(rs.getString("barangay"));
-        incident.setSeverity(rs.getString("severity"));
-        incident.setCasualties(rs.getInt("casualties"));
-        incident.setInjuries(rs.getInt("injuries"));
-        incident.setFamiliesAffected(rs.getInt("families_affected"));
-        incident.setStructuresDamaged(rs.getInt("structures_damaged"));
-        incident.setEstimatedCost(rs.getBigDecimal("estimated_cost"));
-        incident.setDescription(rs.getString("description"));
-        incident.setResponseActions(rs.getString("response_actions"));
-        incident.setLatitude((Double) rs.getObject("latitude"));
-        incident.setLongitude((Double) rs.getObject("longitude"));
-        incident.setCreatedAt(rs.getTimestamp("created_at"));
-        
-        return incident;
-    }
+private Incident extractIncidentFromResultSet(ResultSet rs) throws SQLException { 
+    Incident incident = new Incident(); incident.setIncidentId(rs.getInt("incident_id")); 
+    incident.setZoneId((Integer) rs.getObject("zone_id")); 
+    incident.setIncidentType(rs.getString("incident_type")); 
+    incident.setIncidentDate(rs.getDate("incident_date")); 
+    incident.setBarangay(rs.getString("barangay")); 
+    incident.setSeverity(rs.getString("severity")); 
+    incident.setCasualties(rs.getInt("casualties")); 
+    incident.setInjuries(rs.getInt("injuries")); 
+    incident.setFamiliesAffected(rs.getInt("families_affected")); 
+    incident.setStructuresDamaged(rs.getInt("structures_damaged")); 
+    incident.setEstimatedCost(rs.getBigDecimal("estimated_cost")); 
+    incident.setDescription(rs.getString("description")); 
+    incident.setResponseActions(rs.getString("response_actions")); 
+    incident.setLatitude((Double) rs.getObject("latitude")); 
+    incident.setLongitude((Double) rs.getObject("longitude")); 
+    incident.setCreatedAt(rs.getTimestamp("created_at")); 
+    
+    return incident; }
+
 }

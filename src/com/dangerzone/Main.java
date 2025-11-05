@@ -1,36 +1,42 @@
 package com.dangerzone;
 
-import com.dangerzone.models.DatabaseConnection;
-import com.dangerzone.views.LandmarkManagerDialog;
-import com.dangerzone.views.HazardZoneManagerDialog;
-import com.dangerzone.views.IncidentManagerDialog;
-import com.dangerzone.models.IncidentDAO;
-import com.dangerzone.models.Incident;
-import java.util.List;
+import com.dangerzone.models.*;
+import com.dangerzone.views.*;
 import com.dangerzone.utils.DataExporter;
-import com.dangerzone.utils.MapDataLoader;
-import com.dangerzone.views.DashboardPanel;
-import com.dangerzone.views.SearchDialog;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.web.WebView;
-import javafx.scene.web.WebEngine;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Optional;
+import java.io.InputStream;
+import java.util.List;
 
 public class Main extends Application {
     
     private BorderPane root;
     private TabPane mapTabPane;
-    private WebView mapWebView;
-    private WebEngine webEngine;
-    private MapDataLoader mapDataLoader;
+    private ImageView mapImageView;
+    private Pane mapOverlayPane;
+    private ScrollPane mapScrollPane;
+    private HBox legendBox;
+    private Label mouseCoordinatesLabel;
+    
+    // Map bounds for Ormoc City (adjust based on your actual map)
+    private static final double MAP_MIN_LAT = 10.85;  // Bottom of your map
+    private static final double MAP_MAX_LAT = 11.20;  // Top of your map
+    private static final double MAP_MIN_LNG = 124.45; // Left edge
+    private static final double MAP_MAX_LNG = 124.80; // Right edge
+
+    private static final double MAP_WIDTH = 1920;
+    private static final double MAP_HEIGHT = 988;
     
     @Override
     public void start(Stage primaryStage) {
@@ -57,7 +63,6 @@ public class Main extends Application {
     private MenuBar createMenuBar() {
         MenuBar menuBar = new MenuBar();
         
-        // File Menu
         Menu fileMenu = new Menu("File");
         MenuItem exportLandmarks = new MenuItem("Export Landmarks to CSV");
         MenuItem exportHazards = new MenuItem("Export Hazard Zones to CSV");
@@ -72,17 +77,17 @@ public class Main extends Application {
         fileMenu.getItems().addAll(exportLandmarks, exportHazards, exportIncidents, 
                                    new SeparatorMenuItem(), exit);
         
-        // View Menu (Simplified)
         Menu viewMenu = new Menu("View");
         MenuItem globalSearch = new MenuItem("🔍 Global Search");
+        MenuItem refreshMap = new MenuItem("🔄 Refresh Map");
         globalSearch.setOnAction(e -> openGlobalSearch());
-        viewMenu.getItems().add(globalSearch);
+        refreshMap.setOnAction(e -> refreshMapMarkers());
+        viewMenu.getItems().addAll(globalSearch, refreshMap);
         
-        // Admin Menu
         Menu adminMenu = new Menu("Admin");
-        MenuItem manageLandmarks = new MenuItem("Manage Landmarks");
-        MenuItem manageHazards = new MenuItem("Manage Hazard Zones");
-        MenuItem manageIncidents = new MenuItem("Manage Historical Incidents");
+        MenuItem manageLandmarks = new MenuItem("📍 Manage Landmarks");
+        MenuItem manageHazards = new MenuItem("⚠ Manage Hazard Zones");
+        MenuItem manageIncidents = new MenuItem("📋 Manage Historical Incidents");
         
         manageLandmarks.setOnAction(e -> openLandmarkManager());
         manageHazards.setOnAction(e -> openHazardManager());
@@ -90,7 +95,6 @@ public class Main extends Application {
         
         adminMenu.getItems().addAll(manageLandmarks, manageHazards, manageIncidents);
         
-        // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem about = new MenuItem("About");
         about.setOnAction(e -> showAboutDialog());
@@ -103,7 +107,6 @@ public class Main extends Application {
     private TabPane createMainContent() {
         TabPane tabPane = new TabPane();
         
-        // Dashboard Tab
         Tab dashboardTab = new Tab("📊 Dashboard");
         dashboardTab.setClosable(false);
         try {
@@ -113,17 +116,14 @@ public class Main extends Application {
             dashboardTab.setContent(new Label("Failed to load dashboard: " + e.getMessage()));
         }
         
-        // Map Tab
-        Tab mapTab = new Tab("🗺 Map View");
+        Tab mapTab = new Tab("🗺 Interactive Map");
         mapTab.setClosable(false);
         mapTab.setContent(createMapView());
         
-        // Historical Data Tab
         Tab historyTab = new Tab("📜 Historical Data");
         historyTab.setClosable(false);
         historyTab.setContent(createHistoricalView());
         
-        // Safety Guidelines Tab
         Tab safetyTab = new Tab("🚨 Safety Guidelines");
         safetyTab.setClosable(false);
         safetyTab.setContent(createSafetyView());
@@ -133,421 +133,418 @@ public class Main extends Application {
     }
     
     private VBox createMapView() {
-        VBox container = new VBox(10);
+        VBox container = new VBox(15);
         container.setPadding(new Insets(10));
+        container.setStyle("-fx-background-color: #ecf0f1;");
 
-        // Controls
-        HBox controls = new HBox(10);
-        controls.setAlignment(Pos.CENTER_LEFT);
+        Label titleLabel = new Label("🗺 Ormoc City Hazard Map");
+        titleLabel.setStyle("-fx-font-size: 22; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
 
-        TextField searchField = new TextField();
-        searchField.setPrefWidth(250);
-        searchField.setPromptText("Search landmark or barangay...");
-
-        Button searchBtn = new Button("Search");
-        Button resetBtn = new Button("Reset View");
+        HBox controlsBox = new HBox(15);
+        controlsBox.setAlignment(Pos.CENTER);
+        controlsBox.setPadding(new Insets(10));
+        controlsBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 8;");
         
-        searchBtn.setOnAction(e -> {
-            if (!searchField.getText().trim().isEmpty()) {
-                searchLocationInDB(searchField.getText().trim());
+        CheckBox showLandmarks = new CheckBox("Show Landmarks");
+        showLandmarks.setSelected(true);
+        showLandmarks.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        
+        CheckBox showHazards = new CheckBox("Show Hazard Zones");
+        showHazards.setSelected(true);
+        showHazards.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        
+        Button refreshBtn = new Button("🔄 Refresh");
+        refreshBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        refreshBtn.setOnAction(e -> refreshMapMarkers());
+        
+        showLandmarks.setOnAction(e -> loadMarkersFromDatabase(showLandmarks.isSelected(), showHazards.isSelected()));
+        showHazards.setOnAction(e -> loadMarkersFromDatabase(showLandmarks.isSelected(), showHazards.isSelected()));
+        
+        // Mouse coordinates label
+        mouseCoordinatesLabel = new Label("Hover over map for coordinates");
+        mouseCoordinatesLabel.setStyle("-fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold;");
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        controlsBox.getChildren().addAll(showLandmarks, showHazards, refreshBtn, spacer, mouseCoordinatesLabel);
+        
+        legendBox = createLegend();
+        container.getChildren().addAll(titleLabel, controlsBox);
+        
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            MapDAO mapDAO = new MapDAO(conn);
+            
+            com.dangerzone.models.Map defaultMap = mapDAO.getDefaultMap();
+            if (defaultMap != null) {
+                loadMapWithOverlays(defaultMap, container, showLandmarks, showHazards);
+            } else {
+                showNoMapMessage(container);
             }
-        });
+            
+        } catch (SQLException e) {
+            showErrorMessage(container, "Failed to load map: " + e.getMessage());
+        }
         
-        resetBtn.setOnAction(e -> {
-            resetMapView();
-            searchField.clear();
-        });
-
-        controls.getChildren().addAll(
-            new Label("Search:"), searchField, searchBtn, resetBtn
-        );
-
-        // WebView for Map
-        mapWebView = new WebView();
-        webEngine = mapWebView.getEngine();
-        webEngine.setJavaScriptEnabled(true);
-        webEngine.loadContent(getLeafletMapHTML());
-        
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
-                loadMapData();
-            }
-        });
-        
-        VBox.setVgrow(mapWebView, Priority.ALWAYS);
-
-        // Map Controls
-        HBox mapButtons = new HBox(10);
-        mapButtons.setAlignment(Pos.CENTER);
-        mapButtons.setPadding(new Insets(5));
-
-        Button showAllBtn = new Button("Show All");
-        Button landmarksOnlyBtn = new Button("Landmarks Only");
-        Button hazardsOnlyBtn = new Button("Hazard Zones Only");
-        Button refreshBtn = new Button("Refresh Map");
-        
-        showAllBtn.setOnAction(e -> executeMapScript("showAllLayers();"));
-        landmarksOnlyBtn.setOnAction(e -> executeMapScript("showLandmarksOnly();"));
-        hazardsOnlyBtn.setOnAction(e -> executeMapScript("showHazardsOnly();"));
-        refreshBtn.setOnAction(e -> webEngine.reload());
-
-        mapButtons.getChildren().addAll(showAllBtn, landmarksOnlyBtn, hazardsOnlyBtn, refreshBtn);
-
-        // Legend
-        HBox legend = createLegend();
-
-        container.getChildren().addAll(controls, mapWebView, mapButtons, legend);
+        container.getChildren().add(legendBox);
         return container;
+    }
+    
+    private void loadMapWithOverlays(com.dangerzone.models.Map map, VBox container, 
+                                     CheckBox showLandmarks, CheckBox showHazards) {
+        try {
+            InputStream mapStream = getClass().getResourceAsStream(map.getFilePath());
+            if (mapStream != null) {
+                Image mapImage = new Image(mapStream);
+                mapImageView = new ImageView(mapImage);
+                mapImageView.setPreserveRatio(true);
+                mapImageView.setFitWidth(MAP_WIDTH);
+                mapImageView.setFitHeight(MAP_HEIGHT);
+                
+                // Create overlay pane for markers
+                mapOverlayPane = new Pane();
+                mapOverlayPane.setPrefSize(MAP_WIDTH, MAP_HEIGHT);
+                mapOverlayPane.setMaxSize(MAP_WIDTH, MAP_HEIGHT);
+                mapOverlayPane.setMouseTransparent(false);
+                
+                // Add mouse move listener for coordinates
+                mapOverlayPane.setOnMouseMoved(event -> {
+                    double x = event.getX();
+                    double y = event.getY();
+                    double[] latLng = pixelToLatLng(x, y);
+                    if (latLng != null) {
+                        mouseCoordinatesLabel.setText(String.format("📍 Lat: %.6f°N, Lng: %.6f°E", latLng[0], latLng[1]));
+                    }
+                });
+                
+                mapOverlayPane.setOnMouseExited(event -> {
+                    mouseCoordinatesLabel.setText("Hover over map for coordinates");
+                });
+                
+                // Stack map and overlay
+                StackPane mapStack = new StackPane();
+                mapStack.getChildren().addAll(mapImageView, mapOverlayPane);
+                mapStack.setStyle("-fx-background-color: white; -fx-padding: 10; " +
+                                 "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);");
+                
+                mapScrollPane = new ScrollPane(mapStack);
+                mapScrollPane.setFitToWidth(true);
+                mapScrollPane.setFitToHeight(true);
+                mapScrollPane.setStyle("-fx-background-color: transparent;");
+                VBox.setVgrow(mapScrollPane, Priority.ALWAYS);
+                
+                container.getChildren().add(mapScrollPane);
+                
+                // Load markers from database
+                loadMarkersFromDatabase(showLandmarks.isSelected(), showHazards.isSelected());
+                
+                System.out.println("✅ Map loaded: " + map.getMapName());
+                
+            } else {
+                showErrorMessage(container, "⚠️ Map not found: " + map.getFilePath());
+            }
+        } catch (Exception e) {
+            showErrorMessage(container, "⚠️ Failed to load map: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void loadMarkersFromDatabase(boolean showLandmarks, boolean showHazards) {
+        if (mapOverlayPane == null) return;
+        
+        mapOverlayPane.getChildren().clear();
+        
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            
+            // Load and display landmarks
+            if (showLandmarks) {
+                LandmarkDAO landmarkDAO = new LandmarkDAO(conn);
+                List<Landmark> landmarks = landmarkDAO.getAllLandmarks();
+                
+                for (Landmark landmark : landmarks) {
+                    addLandmarkMarker(landmark);
+                }
+                System.out.println("📍 Loaded " + landmarks.size() + " landmarks");
+            }
+            
+            // Load and display hazard zones
+            if (showHazards) {
+                HazardZoneDAO hazardDAO = new HazardZoneDAO(conn);
+                List<HazardZone> hazards = hazardDAO.getActiveHazardZones();
+                
+                for (HazardZone hazard : hazards) {
+                    addHazardMarker(hazard);
+                }
+                System.out.println("⚠️ Loaded " + hazards.size() + " hazard zones");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error loading markers: " + e.getMessage());
+        }
+    }
+    
+    private void addLandmarkMarker(Landmark landmark) {
+        double[] xy = latLngToPixel(landmark.getLatitude(), landmark.getLongitude());
+        
+        if (xy == null) return; // Outside map bounds
+        
+        // Create marker
+        Circle marker = new Circle(8);
+        marker.setCenterX(xy[0]);
+        marker.setCenterY(xy[1]);
+        
+        // Color based on type
+        if (landmark.isEvacuationSite()) {
+            marker.setFill(Color.web("#27ae60")); // Green for evacuation
+            marker.setRadius(10);
+        } else {
+            marker.setFill(Color.web("#3498db")); // Blue for landmark
+        }
+        
+        marker.setStroke(Color.WHITE);
+        marker.setStrokeWidth(2);
+        
+        // Tooltip
+        Tooltip tooltip = new Tooltip(
+            landmark.getName() + "\n" +
+            landmark.getType() + "\n" +
+            landmark.getBarangay() +
+            (landmark.isEvacuationSite() ? "\n🏥 EVACUATION CENTER" : "")
+        );
+        Tooltip.install(marker, tooltip);
+        
+        // Click to show details
+        marker.setOnMouseClicked(e -> showLandmarkDetails(landmark));
+        marker.setStyle("-fx-cursor: hand;");
+        
+        mapOverlayPane.getChildren().add(marker);
+    }
+    
+    private void addHazardMarker(HazardZone hazard) {
+        double[] xy = latLngToPixel(hazard.getLatitude(), hazard.getLongitude());
+        
+        if (xy == null) return;
+        
+        // Convert radius from meters to pixels
+        double radiusPixels = metersToPixels(hazard.getRadiusMeters());
+        
+        // Create circle for hazard zone
+        Circle hazardCircle = new Circle(radiusPixels);
+        hazardCircle.setCenterX(xy[0]);
+        hazardCircle.setCenterY(xy[1]);
+        
+        // Color based on severity
+        Color fillColor;
+        switch (hazard.getSeverityLevel().toLowerCase()) {
+            case "critical":
+                fillColor = Color.web("#e74c3c", 0.4);
+                break;
+            case "high":
+                fillColor = Color.web("#f39c12", 0.35);
+                break;
+            case "medium":
+                fillColor = Color.web("#f1c40f", 0.3);
+                break;
+            default:
+                fillColor = Color.web("#95a5a6", 0.25);
+        }
+        
+        hazardCircle.setFill(fillColor);
+        hazardCircle.setStroke(fillColor.darker());
+        hazardCircle.setStrokeWidth(2);
+        
+        // Tooltip
+        Tooltip tooltip = new Tooltip(
+            hazard.getZoneName() + "\n" +
+            hazard.getHazardType() + " - " + hazard.getSeverityLevel() + "\n" +
+            hazard.getBarangay() + "\n" +
+            "Radius: " + hazard.getRadiusMeters() + "m\n" +
+            "Population: " + hazard.getAffectedPopulation()
+        );
+        Tooltip.install(hazardCircle, tooltip);
+        
+        hazardCircle.setOnMouseClicked(e -> showHazardDetails(hazard));
+        hazardCircle.setStyle("-fx-cursor: hand;");
+        
+        // Center marker
+        Circle centerMarker = new Circle(5);
+        centerMarker.setCenterX(xy[0]);
+        centerMarker.setCenterY(xy[1]);
+        centerMarker.setFill(fillColor.darker());
+        centerMarker.setStroke(Color.WHITE);
+        centerMarker.setStrokeWidth(2);
+        
+        mapOverlayPane.getChildren().addAll(hazardCircle, centerMarker);
+    }
+    
+    private double[] latLngToPixel(double lat, double lng) {
+        // Check if coordinates are within map bounds
+        if (lat < MAP_MIN_LAT || lat > MAP_MAX_LAT || 
+            lng < MAP_MIN_LNG || lng > MAP_MAX_LNG) {
+            return null;
+        }
+        
+        // Convert lat/lng to pixel coordinates
+        double x = ((lng - MAP_MIN_LNG) / (MAP_MAX_LNG - MAP_MIN_LNG)) * MAP_WIDTH;
+        double y = ((MAP_MAX_LAT - lat) / (MAP_MAX_LAT - MAP_MIN_LAT)) * MAP_HEIGHT;
+        
+        return new double[]{x, y};
+    }
+    
+    private double[] pixelToLatLng(double x, double y) {
+        // Convert pixel coordinates back to lat/lng
+        double lng = MAP_MIN_LNG + (x / MAP_WIDTH) * (MAP_MAX_LNG - MAP_MIN_LNG);
+        double lat = MAP_MAX_LAT - (y / MAP_HEIGHT) * (MAP_MAX_LAT - MAP_MIN_LAT);
+        
+        // Validate bounds
+        if (lat < MAP_MIN_LAT || lat > MAP_MAX_LAT || 
+            lng < MAP_MIN_LNG || lng > MAP_MAX_LNG) {
+            return null;
+        }
+        
+        return new double[]{lat, lng};
+    }
+    
+    private double metersToPixels(int meters) {
+        // Approximate conversion (1 degree ≈ 111km)
+        double degreesLat = meters / 111000.0;
+        double pixelsPerDegree = MAP_HEIGHT / (MAP_MAX_LAT - MAP_MIN_LAT);
+        return degreesLat * pixelsPerDegree;
+    }
+    
+    private void refreshMapMarkers() {
+        Tab currentTab = mapTabPane.getSelectionModel().getSelectedItem();
+        if (currentTab != null && currentTab.getText().contains("Map")) {
+            VBox mapContainer = (VBox) currentTab.getContent();
+            HBox controls = (HBox) mapContainer.getChildren().get(1);
+            
+            CheckBox showLandmarks = (CheckBox) controls.getChildren().get(0);
+            CheckBox showHazards = (CheckBox) controls.getChildren().get(1);
+            
+            loadMarkersFromDatabase(showLandmarks.isSelected(), showHazards.isSelected());
+            showSuccessAlert("Map refreshed!");
+        }
+    }
+    
+    private void showLandmarkDetails(Landmark landmark) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Landmark Details");
+        alert.setHeaderText(landmark.getName());
+        
+        StringBuilder content = new StringBuilder();
+        content.append("Type: ").append(landmark.getType()).append("\n");
+        content.append("Barangay: ").append(landmark.getBarangay()).append("\n");
+        content.append("Coordinates: ").append(landmark.getCoordinates()).append("\n");
+        if (landmark.getContactNumber() != null) {
+            content.append("Contact: ").append(landmark.getContactNumber()).append("\n");
+        }
+        if (landmark.isEvacuationSite()) {
+            content.append("\n🏥 EVACUATION CENTER\n");
+            content.append("Capacity: ").append(landmark.getCapacity()).append(" persons\n");
+        }
+        if (landmark.getDescription() != null) {
+            content.append("\n").append(landmark.getDescription());
+        }
+        
+        alert.setContentText(content.toString());
+        alert.showAndWait();
+    }
+    
+    private void showHazardDetails(HazardZone hazard) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Hazard Zone Details");
+        alert.setHeaderText(hazard.getZoneName());
+        
+        StringBuilder content = new StringBuilder();
+        content.append("Type: ").append(hazard.getHazardType()).append("\n");
+        content.append("Severity: ").append(hazard.getSeverityLevel()).append("\n");
+        content.append("Barangay: ").append(hazard.getBarangay()).append("\n");
+        content.append("Coordinates: ").append(hazard.getCoordinates()).append("\n");
+        content.append("Radius: ").append(hazard.getRadiusMeters()).append(" meters\n");
+        content.append("Affected Population: ").append(hazard.getAffectedPopulation()).append("\n");
+        if (hazard.getDescription() != null) {
+            content.append("\n").append(hazard.getDescription());
+        }
+        
+        alert.setContentText(content.toString());
+        alert.showAndWait();
+    }
+    
+    private void showNoMapMessage(VBox container) {
+        VBox messageBox = new VBox(15);
+        messageBox.setAlignment(Pos.CENTER);
+        messageBox.setPadding(new Insets(50));
+        messageBox.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
+        
+        Label icon = new Label("🗺️");
+        icon.setStyle("-fx-font-size: 48;");
+        
+        Label message = new Label("No map available");
+        message.setStyle("-fx-font-size: 18; -fx-font-weight: bold;");
+        
+        messageBox.getChildren().addAll(icon, message);
+        VBox.setVgrow(messageBox, Priority.ALWAYS);
+        container.getChildren().add(messageBox);
+    }
+    
+    private void showErrorMessage(VBox container, String message) {
+        VBox errorBox = new VBox(10);
+        errorBox.setAlignment(Pos.CENTER);
+        errorBox.setPadding(new Insets(30));
+        errorBox.setStyle("-fx-background-color: #fee; -fx-border-color: #e74c3c;");
+        
+        Label errorLabel = new Label(message);
+        errorLabel.setWrapText(true);
+        errorBox.getChildren().add(errorLabel);
+        VBox.setVgrow(errorBox, Priority.ALWAYS);
+        container.getChildren().add(errorBox);
     }
     
     private HBox createLegend() {
         HBox legend = new HBox(20);
         legend.setAlignment(Pos.CENTER);
-        legend.setPadding(new Insets(5));
-        legend.setStyle("-fx-background-color: #ecf0f1; -fx-border-color: #bdc3c7;");
+        legend.setPadding(new Insets(15));
+        legend.setStyle("-fx-background-color: white; -fx-border-color: #bdc3c7; " +
+                       "-fx-border-radius: 8; -fx-background-radius: 8;");
 
+        Label legendTitle = new Label("LEGEND:");
+        legendTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+        
         legend.getChildren().addAll(
-            createLegendItem("🔵 Landmark", "#3498db"),
-            createLegendItem("🔺 Evacuation Center", "#27ae60"),
-            createLegendItem("🔴 Critical", "#e74c3c"),
-            createLegendItem("🟠 High", "#f39c12"),
-            createLegendItem("🟡 Medium", "#f1c40f"),
-            createLegendItem("⚪ Low", "#95a5a6")
+            legendTitle,
+            createLegendItem("📍 Landmark", "#3498db"),
+            createLegendItem("🏥 Evacuation Center", "#27ae60"),
+            createLegendItem("🔴 Critical Hazard", "#e74c3c"),
+            createLegendItem("🟠 High Hazard", "#f39c12"),
+            createLegendItem("🟡 Medium Hazard", "#f1c40f"),
+            createLegendItem("⚪ Low Hazard", "#95a5a6")
         );
         
         return legend;
     }
     
     private HBox createLegendItem(String label, String color) {
-        HBox item = new HBox(5);
+        HBox item = new HBox(8);
         item.setAlignment(Pos.CENTER);
         
         Region colorBox = new Region();
         colorBox.setPrefSize(20, 20);
-        colorBox.setStyle("-fx-background-color: " + color + "; -fx-border-color: #2c3e50;");
+        colorBox.setStyle("-fx-background-color: " + color + "; -fx-border-color: #2c3e50; -fx-border-width: 2;");
         
-        item.getChildren().addAll(colorBox, new Label(label));
+        Label itemLabel = new Label(label);
+        itemLabel.setStyle("-fx-font-size: 12;");
+        
+        item.getChildren().addAll(colorBox, itemLabel);
         return item;
     }
-    
-    private String getLeafletMapHTML() {
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-            <style>
-                body { margin: 0; padding: 0; }
-                #map { width: 100%; height: 100vh; }
-                .popup-title { font-weight: bold; font-size: 14px; }
-                .popup-info { font-size: 12px; margin: 2px 0; }
-            </style>
-        </head>
-        <body>
-            <div id="map"></div>
-            <script>
-                var map = L.map('map').setView([11.0059, 124.6075], 13);
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap',
-                    maxZoom: 18
-                }).addTo(map);
-
-                var landmarkLayer = L.layerGroup().addTo(map);
-                var floodLayer = L.layerGroup().addTo(map);
-                var fireLayer = L.layerGroup().addTo(map);
-                var landslideLayer = L.layerGroup().addTo(map);
-                var stormSurgeLayer = L.layerGroup().addTo(map);
-
-                var blueIcon = L.icon({
-                    iconUrl: 'data:image/svg+xml,%3Csvg width="24" height="24" xmlns="http://www.w3.org/2000/svg"%3E%3Ccircle cx="12" cy="12" r="8" fill="%233498db" stroke="white" stroke-width="2"/%3E%3C/svg%3E',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                });
-
-                var greenIcon = L.icon({
-                    iconUrl: 'data:image/svg+xml,%3Csvg width="24" height="24" xmlns="http://www.w3.org/2000/svg"%3E%3Cpolygon points="12,2 22,22 2,22" fill="%2327ae60" stroke="white" stroke-width="2"/%3E%3C/svg%3E',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 22]
-                });
-
-                function showAllLayers() {
-                    map.addLayer(landmarkLayer);
-                    map.addLayer(floodLayer);
-                    map.addLayer(fireLayer);
-                    map.addLayer(landslideLayer);
-                    map.addLayer(stormSurgeLayer);
-                }
-
-                function showLandmarksOnly() {
-                    map.addLayer(landmarkLayer);
-                    map.removeLayer(floodLayer);
-                    map.removeLayer(fireLayer);
-                    map.removeLayer(landslideLayer);
-                    map.removeLayer(stormSurgeLayer);
-                }
-
-                function showHazardsOnly() {
-                    map.removeLayer(landmarkLayer);
-                    map.addLayer(floodLayer);
-                    map.addLayer(fireLayer);
-                    map.addLayer(landslideLayer);
-                    map.addLayer(stormSurgeLayer);
-                }
-
-                function resetView() {
-                    map.setView([11.0059, 124.6075], 13);
-                }
-
-                console.log('Map ready');
-            </script>
-        </body>
-        </html>
-        """;
-    }
-    
-    // Helper methods
-    
-    private void executeMapScript(String script) {
-        if (webEngine != null) {
-            try {
-                webEngine.executeScript(script);
-            } catch (Exception e) {
-                System.err.println("JS error: " + e.getMessage());
-            }
-        }
-    }
-    
-    private void resetMapView() {
-        executeMapScript("resetView();");
-    }
-    
-    private void loadMapData() {
-        try {
-            Connection conn = DatabaseConnection.getConnection();
-            mapDataLoader = new MapDataLoader(conn);
-            
-            executeMapScript(mapDataLoader.generateLandmarksScript());
-            executeMapScript(mapDataLoader.generateHazardZonesScript());
-            
-            System.out.println("✅ Map data loaded");
-        } catch (SQLException e) {
-            showErrorAlert("Failed to load map: " + e.getMessage());
-        }
-    }
-    
-    public void refreshMapData() {
-        if (mapWebView != null && webEngine != null) {
-            loadMapData();
-        }
-    }
-    
-    private void searchLocationInDB(String query) {
-        try {
-            Connection conn = DatabaseConnection.getConnection();
-            String sql = "SELECT landmark_name, latitude, longitude FROM landmarks " +
-                        "WHERE landmark_name LIKE ? OR barangay LIKE ? LIMIT 1";
-            
-            try (java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
-                String pattern = "%" + query + "%";
-                stmt.setString(1, pattern);
-                stmt.setString(2, pattern);
-                
-                try (java.sql.ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        double lat = rs.getDouble("latitude");
-                        double lng = rs.getDouble("longitude");
-                        String name = rs.getString("landmark_name");
-                        
-                        executeMapScript(String.format(
-                            "map.setView([%f, %f], 16); " +
-                            "L.popup().setLatLng([%f, %f])" +
-                            ".setContent('<b>%s</b>').openOn(map);",
-                            lat, lng, lat, lng, name.replace("'", "\\'")
-                        ));
-                    } else {
-                        showErrorAlert("Location not found: " + query);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            showErrorAlert("Search failed: " + e.getMessage());
-        }
-    }
-    
-    private void showEditModeDialog() {
-        Stage editStage = new Stage();
-        editStage.setTitle("Map Edit Mode");
-        
-        VBox editBox = new VBox(15);
-        editBox.setPadding(new Insets(20));
-        editBox.setAlignment(Pos.CENTER);
-        
-        Label instruction = new Label("Select an action:");
-        instruction.setStyle("-fx-font-size: 14; -fx-font-weight: bold;");
-        
-        Button addLandmarkBtn = new Button("📍 Add Landmark");
-        addLandmarkBtn.setPrefWidth(200);
-        addLandmarkBtn.setOnAction(e -> { addLandmarkManually(); editStage.close(); });
-        
-        Button addHazardBtn = new Button("⚠️ Add Hazard Zone");
-        addHazardBtn.setPrefWidth(200);
-        addHazardBtn.setOnAction(e -> { addHazardZoneManually(); editStage.close(); });
-        
-        Button closeBtn = new Button("Close");
-        closeBtn.setPrefWidth(200);
-        closeBtn.setOnAction(e -> editStage.close());
-        
-        editBox.getChildren().addAll(instruction, addLandmarkBtn, addHazardBtn, closeBtn);
-        
-        editStage.setScene(new Scene(editBox, 300, 250));
-        editStage.show();
-    }
-    
-    private void addLandmarkManually() {
-        try {
-            Connection conn = DatabaseConnection.getConnection();
-            
-            TextInputDialog nameDialog = new TextInputDialog();
-            nameDialog.setTitle("Add Landmark");
-            nameDialog.setHeaderText("Enter landmark name:");
-            Optional<String> nameResult = nameDialog.showAndWait();
-            if (!nameResult.isPresent()) return;
-            
-            TextInputDialog barangayDialog = new TextInputDialog();
-            barangayDialog.setHeaderText("Enter barangay:");
-            Optional<String> barangayResult = barangayDialog.showAndWait();
-            if (!barangayResult.isPresent()) return;
-            
-            ChoiceDialog<String> typeDialog = new ChoiceDialog<>("School", 
-                "School", "Hospital", "Government Office", "Church", "Market", "Other");
-            typeDialog.setHeaderText("Select type:");
-            Optional<String> typeResult = typeDialog.showAndWait();
-            if (!typeResult.isPresent()) return;
-            
-            TextInputDialog latDialog = new TextInputDialog("11.0059");
-            latDialog.setHeaderText("Enter latitude:");
-            Optional<String> latResult = latDialog.showAndWait();
-            if (!latResult.isPresent()) return;
-            
-            TextInputDialog lngDialog = new TextInputDialog("124.6075");
-            lngDialog.setHeaderText("Enter longitude:");
-            Optional<String> lngResult = lngDialog.showAndWait();
-            if (!lngResult.isPresent()) return;
-            
-            Alert evacuationAlert = new Alert(Alert.AlertType.CONFIRMATION);
-            evacuationAlert.setHeaderText("Is this an evacuation site?");
-            ButtonType yes = new ButtonType("Yes");
-            ButtonType no = new ButtonType("No");
-            evacuationAlert.getButtonTypes().setAll(yes, no);
-            Optional<ButtonType> evacResult = evacuationAlert.showAndWait();
-            boolean isEvac = evacResult.isPresent() && evacResult.get() == yes;
-            
-            int capacity = 0;
-            if (isEvac) {
-                TextInputDialog capDialog = new TextInputDialog("0");
-                capDialog.setHeaderText("Enter capacity (persons):");
-                Optional<String> capResult = capDialog.showAndWait();
-                if (capResult.isPresent()) {
-                    capacity = Integer.parseInt(capResult.get());
-                }
-            }
-            
-            String sql = "INSERT INTO landmarks (landmark_name, landmark_type, barangay, " +
-                        "latitude, longitude, is_evacuation_site, capacity) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            
-            try (java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, nameResult.get());
-                stmt.setString(2, typeResult.get());
-                stmt.setString(3, barangayResult.get());
-                stmt.setDouble(4, Double.parseDouble(latResult.get()));
-                stmt.setDouble(5, Double.parseDouble(lngResult.get()));
-                stmt.setBoolean(6, isEvac);
-                stmt.setInt(7, capacity);
-                stmt.executeUpdate();
-                
-                showSuccessAlert("Landmark added!");
-                refreshMapData();
-            }
-            
-        } catch (Exception ex) {
-            showErrorAlert("Failed: " + ex.getMessage());
-        }
-    }
-    
-    private void addHazardZoneManually() {
-        try {
-            Connection conn = DatabaseConnection.getConnection();
-            
-            TextInputDialog nameDialog = new TextInputDialog();
-            nameDialog.setHeaderText("Enter zone name:");
-            Optional<String> nameResult = nameDialog.showAndWait();
-            if (!nameResult.isPresent()) return;
-            
-            TextInputDialog barangayDialog = new TextInputDialog();
-            barangayDialog.setHeaderText("Enter barangay:");
-            Optional<String> barangayResult = barangayDialog.showAndWait();
-            if (!barangayResult.isPresent()) return;
-            
-            ChoiceDialog<String> typeDialog = new ChoiceDialog<>("Flood", 
-                "Flood", "Fire", "Landslide", "Storm Surge");
-            typeDialog.setHeaderText("Select hazard type:");
-            Optional<String> typeResult = typeDialog.showAndWait();
-            if (!typeResult.isPresent()) return;
-            
-            ChoiceDialog<String> sevDialog = new ChoiceDialog<>("High", 
-                "Low", "Medium", "High", "Critical");
-            sevDialog.setHeaderText("Select severity:");
-            Optional<String> sevResult = sevDialog.showAndWait();
-            if (!sevResult.isPresent()) return;
-            
-            TextInputDialog latDialog = new TextInputDialog("11.0059");
-            latDialog.setHeaderText("Enter latitude:");
-            Optional<String> latResult = latDialog.showAndWait();
-            if (!latResult.isPresent()) return;
-            
-            TextInputDialog lngDialog = new TextInputDialog("124.6075");
-            lngDialog.setHeaderText("Enter longitude:");
-            Optional<String> lngResult = lngDialog.showAndWait();
-            if (!lngResult.isPresent()) return;
-            
-            TextInputDialog radDialog = new TextInputDialog("500");
-            radDialog.setHeaderText("Enter radius (meters):");
-            Optional<String> radResult = radDialog.showAndWait();
-            if (!radResult.isPresent()) return;
-            
-            String sql = "INSERT INTO hazard_zones (zone_name, barangay, hazard_type, " +
-                        "severity_level, latitude, longitude, radius_meters, is_active, date_identified) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_DATE)";
-            
-            try (java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, nameResult.get());
-                stmt.setString(2, barangayResult.get());
-                stmt.setString(3, typeResult.get());
-                stmt.setString(4, sevResult.get());
-                stmt.setDouble(5, Double.parseDouble(latResult.get()));
-                stmt.setDouble(6, Double.parseDouble(lngResult.get()));
-                stmt.setInt(7, Integer.parseInt(radResult.get()));
-                stmt.executeUpdate();
-                
-                showSuccessAlert("Hazard zone added!");
-                refreshMapData();
-            }
-            
-        } catch (Exception ex) {
-            showErrorAlert("Failed: " + ex.getMessage());
-        }
-    }
-    
-    // Create other views (simplified)
     
     private VBox createHistoricalView() {
         VBox container = new VBox(10);
         container.setPadding(new Insets(10));
 
-        Label title = new Label("Historical Incidents - Ormoc City");
+        Label title = new Label("📜 Historical Incidents");
         title.setStyle("-fx-font-size: 18; -fx-font-weight: bold;");
 
         HBox filters = new HBox(10);
@@ -578,8 +575,7 @@ public class Main extends Application {
             applyBtn, manageBtn
         );
 
-        summaryArea.setText("Click 'Apply Filter' to view incident records");
-
+        summaryArea.setText("Click 'Apply Filter' to view incidents");
         container.getChildren().addAll(title, filters, summaryArea);
         return container;
     }
@@ -619,7 +615,7 @@ public class Main extends Application {
         VBox container = new VBox(15);
         container.setPadding(new Insets(20));
         
-        Label title = new Label("Emergency Safety Guidelines - Ormoc City");
+        Label title = new Label("🚨 Emergency Safety Guidelines");
         title.setStyle("-fx-font-size: 24; -fx-font-weight: bold;");
         
         TextArea guidelines = new TextArea();
@@ -628,33 +624,20 @@ public class Main extends Application {
         guidelines.setText(
             "=== 🌊 FLOOD SAFETY ===\n" +
             "• Move to higher ground during warnings\n" +
-            "• Never drive through flood waters\n" +
-            "• Know evacuation routes (especially Anilao-Malbasag area)\n\n" +
-            
+            "• Never drive through flood waters\n\n" +
             "=== 🏔 LANDSLIDE SAFETY ===\n" +
             "• Watch for cracks in ground/walls\n" +
-            "• Evacuate immediately if imminent\n" +
-            "• High-risk: Can-adieng, Donghol, Alta Vista\n\n" +
-            
+            "• Evacuate immediately if imminent\n\n" +
             "=== 🌀 STORM SURGE SAFETY ===\n" +
-            "• Evacuate coastal areas for Category 3+ typhoons\n" +
-            "• Move 1km inland or to 3+ floor buildings\n\n" +
-            
+            "• Evacuate coastal areas for Category 3+ typhoons\n\n" +
             "=== 🔥 FIRE SAFETY ===\n" +
             "• Keep fire extinguishers accessible\n" +
-            "• Have 2 exit routes\n" +
-            "• Install smoke detectors\n\n" +
-            
+            "• Have 2 exit routes\n\n" +
             "=== 📞 EMERGENCY CONTACTS ===\n" +
             "🚨 Emergency: 911\n" +
             "🛡 CDRRMO: (053) 561-5027\n" +
-            "🚒 Fire Dept: (053) 561-2222\n" +
-            "🏥 Hospital: (053) 255-2316\n\n" +
-            
-            "=== 🏥 EVACUATION CENTERS ===\n" +
-            "1. Superdome - 2,000 capacity\n" +
-            "2. Multi-Purpose Gym - 1,500 capacity\n" +
-            "3. Divine Word College - 500 capacity"
+            "🚒 Fire: (053) 561-2222\n" +
+            "🏥 Hospital: (053) 255-2316"
         );
         VBox.setVgrow(guidelines, Priority.ALWAYS);
         
@@ -667,7 +650,7 @@ public class Main extends Application {
         statusBar.setPadding(new Insets(5));
         statusBar.setStyle("-fx-background-color: #34495e;");
         
-        Label status = new Label("Ready - Danger Zone Mapping v1.0");
+        Label status = new Label("✅ Ready - Danger Zone Mapping v1.0");
         status.setStyle("-fx-text-fill: white;");
         
         Region spacer = new Region();
@@ -680,23 +663,15 @@ public class Main extends Application {
         return statusBar;
     }
     
-    // Menu action handlers
-    
     private void exportData(String type) {
         try {
             Connection conn = DatabaseConnection.getConnection();
             Stage stage = (Stage) root.getScene().getWindow();
             
             switch (type) {
-                case "landmarks":
-                    DataExporter.exportLandmarks(stage, conn);
-                    break;
-                case "hazards":
-                    DataExporter.exportHazardZones(stage, conn);
-                    break;
-                case "incidents":
-                    DataExporter.exportIncidents(stage, conn);
-                    break;
+                case "landmarks": DataExporter.exportLandmarks(stage, conn); break;
+                case "hazards": DataExporter.exportHazardZones(stage, conn); break;
+                case "incidents": DataExporter.exportIncidents(stage, conn); break;
             }
             showSuccessAlert("Export successful!");
         } catch (SQLException ex) {
@@ -706,8 +681,7 @@ public class Main extends Application {
     
     private void openGlobalSearch() {
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            new SearchDialog(conn).show();
+            new SearchDialog(DatabaseConnection.getConnection()).show();
         } catch (SQLException ex) {
             showErrorAlert("Failed to open search: " + ex.getMessage());
         }
@@ -715,10 +689,7 @@ public class Main extends Application {
     
     private void openLandmarkManager() {
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            LandmarkManagerDialog dialog = new LandmarkManagerDialog(conn);
-            dialog.show();
-            dialog.setOnHidden(e -> refreshMapData());
+            new LandmarkManagerDialog(DatabaseConnection.getConnection()).show();
         } catch (SQLException ex) {
             showErrorAlert("Failed to connect: " + ex.getMessage());
         }
@@ -726,10 +697,7 @@ public class Main extends Application {
     
     private void openHazardManager() {
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            HazardZoneManagerDialog dialog = new HazardZoneManagerDialog(conn);
-            dialog.show();
-            dialog.setOnHidden(e -> refreshMapData());
+            new HazardZoneManagerDialog(DatabaseConnection.getConnection()).show();
         } catch (SQLException ex) {
             showErrorAlert("Failed to connect: " + ex.getMessage());
         }
@@ -737,8 +705,7 @@ public class Main extends Application {
     
     private void openIncidentManager() {
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            new IncidentManagerDialog(conn).show();
+            new IncidentManagerDialog(DatabaseConnection.getConnection()).show();
         } catch (SQLException ex) {
             showErrorAlert("Failed to connect: " + ex.getMessage());
         }
@@ -749,17 +716,13 @@ public class Main extends Application {
         alert.setTitle("About");
         alert.setHeaderText("Danger Zone Mapping System");
         alert.setContentText(
-            "Version 1.0 - Ormoc City Edition\n\n" +
+            "Version 1.0 - Ormoc City\n\n" +
             "Features:\n" +
-            "• Interactive hazard mapping\n" +
+            "• Interactive map with database markers\n" +
+            "• Landmarks and hazard zones visualization\n" +
+            "• Click markers for details\n" +
             "• Historical disaster tracking\n" +
-            "• Landmark management\n" +
-            "• Safety guidelines\n\n" +
-            "Target Users:\n" +
-            "• Residents\n" +
-            "• Local Government\n" +
-            "• Disaster Management\n" +
-            "• Researchers"
+            "• Safety guidelines"
         );
         alert.showAndWait();
     }

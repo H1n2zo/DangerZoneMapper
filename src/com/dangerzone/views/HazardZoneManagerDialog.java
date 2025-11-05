@@ -10,8 +10,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
-import javafx.scene.web.WebView;
-import javafx.scene.web.WebEngine;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -21,6 +23,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.io.InputStream;
 
 public class HazardZoneManagerDialog extends Stage {
     
@@ -29,8 +32,19 @@ public class HazardZoneManagerDialog extends Stage {
     private ObservableList<HazardZone> hazardData;
     private ComboBox<String> filterTypeCombo;
     private ComboBox<String> filterSeverityCombo;
-    private WebView mapView;
-    private WebEngine webEngine;
+    private ImageView mapImageView;
+    private Pane mapOverlayPane;
+    private Label coordsLabel;
+    private Circle selectionMarker;
+    private Circle radiusCircle;
+    
+    // Map bounds for Ormoc City
+    private static final double MAP_MIN_LAT = 10.85;
+    private static final double MAP_MAX_LAT = 11.20;
+    private static final double MAP_MIN_LNG = 124.45;
+    private static final double MAP_MAX_LNG = 124.80;
+    private static final double MAP_WIDTH = 1920;
+    private static final double MAP_HEIGHT = 988;
     
     // For storing clicked coordinates and radius
     private double selectedLat = 11.0059;
@@ -71,19 +85,22 @@ public class HazardZoneManagerDialog extends Stage {
         // Right: Map with radius control
         VBox mapBox = new VBox(10);
         mapBox.setPadding(new Insets(10));
-        Label mapLabel = new Label("🗺 Click map + adjust radius slider");
+        Label mapLabel = new Label("🗺 Click map to select location + adjust radius slider");
         mapLabel.setStyle("-fx-font-weight: bold;");
         
         HBox radiusControl = createRadiusControl();
         
-        mapView = createInteractiveMap();
-        VBox.setVgrow(mapView, Priority.ALWAYS);
+        ScrollPane mapScrollPane = createInteractiveMap();
+        VBox.setVgrow(mapScrollPane, Priority.ALWAYS);
         
-        Label coordsLabel = new Label("Selected: 11.0059°N, 124.6075°E | Radius: 500m");
-        coordsLabel.setId("coordsLabel");
-        coordsLabel.setStyle("-fx-font-size: 12px;");
+        coordsLabel = new Label(String.format("Selected: %.6f°N, %.6f°E | Radius: %dm", 
+                                             selectedLat, selectedLng, selectedRadius));
+        coordsLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; " +
+                            "-fx-padding: 8; -fx-background-color: #ecf0f1; " +
+                            "-fx-border-color: #3498db; -fx-border-width: 2;");
+        coordsLabel.setAlignment(Pos.CENTER);
         
-        mapBox.getChildren().addAll(mapLabel, radiusControl, mapView, coordsLabel);
+        mapBox.getChildren().addAll(mapLabel, radiusControl, mapScrollPane, coordsLabel);
         
         splitPane.getItems().addAll(tableBox, mapBox);
         root.setCenter(splitPane);
@@ -143,7 +160,7 @@ public class HazardZoneManagerDialog extends Stage {
         radiusSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             selectedRadius = newVal.intValue();
             radiusValue.setText(selectedRadius + "m");
-            updateRadiusOnMap(selectedRadius);
+            updateRadiusVisualization();
             updateCoordsLabel();
         });
         
@@ -207,128 +224,142 @@ public class HazardZoneManagerDialog extends Stage {
         return table;
     }
     
-    private WebView createInteractiveMap() {
-        WebView webView = new WebView();
-        webEngine = webView.getEngine();
-        webEngine.setJavaScriptEnabled(true);
-        
-        String mapHTML = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-            <style>
-                body { margin: 0; padding: 0; }
-                #map { width: 100%; height: 100vh; cursor: crosshair; }
-            </style>
-        </head>
-        <body>
-            <div id="map"></div>
-            <script>
-                var map = L.map('map').setView([11.0059, 124.6075], 13);
+    private ScrollPane createInteractiveMap() {
+        try {
+            InputStream mapStream = getClass().getResourceAsStream("/resources/ormoc_map.png");
+            if (mapStream != null) {
+                Image mapImage = new Image(mapStream);
+                mapImageView = new ImageView(mapImage);
+                mapImageView.setPreserveRatio(true);
+                mapImageView.setFitWidth(MAP_WIDTH * 0.5); // Scale down for dialog
+                mapImageView.setFitHeight(MAP_HEIGHT * 0.5);
                 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap',
-                    maxZoom: 19
-                }).addTo(map);
+                // Create overlay pane for markers
+                mapOverlayPane = new Pane();
+                mapOverlayPane.setPrefSize(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5);
+                mapOverlayPane.setMaxSize(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5);
                 
-                var clickCircle = null;
-                var currentRadius = 500;
-                
-                map.on('click', function(e) {
-                    var lat = e.latlng.lat.toFixed(6);
-                    var lng = e.latlng.lng.toFixed(6);
+                // Add mouse tracking
+                mapOverlayPane.setOnMouseMoved(event -> {
+                    double mouseX = event.getX();
+                    double mouseY = event.getY();
                     
-                    if (clickCircle) {
-                        map.removeLayer(clickCircle);
-                    }
+                    // Convert pixel to coordinates
+                    double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+                    double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
                     
-                    clickCircle = L.circle(e.latlng, {
-                        radius: currentRadius,
-                        color: '#f39c12',
-                        fillColor: '#f39c12',
-                        fillOpacity: 0.3,
-                        weight: 2
-                    }).addTo(map);
+                    double latitude = MAP_MAX_LAT - (mouseY / scaledHeight) * (MAP_MAX_LAT - MAP_MIN_LAT);
+                    double longitude = MAP_MIN_LNG + (mouseX / scaledWidth) * (MAP_MAX_LNG - MAP_MIN_LNG);
                     
-                    clickCircle.bindPopup('<b>Hazard Zone</b><br>Center: ' + lat + ', ' + lng + 
-                                         '<br>Radius: ' + currentRadius + 'm').openPopup();
-                    
-                    document.title = lat + ',' + lng;
+                    coordsLabel.setText(String.format("Hover: %.6f°N, %.6f°E | Radius: %dm", 
+                                                     latitude, longitude, selectedRadius));
                 });
                 
-                function updateRadius(radius) {
-                    currentRadius = radius;
-                    if (clickCircle) {
-                        clickCircle.setRadius(radius);
-                        clickCircle.getPopup().setContent('<b>Hazard Zone</b><br>Radius: ' + radius + 'm');
-                    }
-                }
-                
-                function showZone(lat, lng, radius, name, color) {
-                    map.setView([lat, lng], 15);
-                    L.circle([lat, lng], {
-                        radius: radius,
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: 0.3
-                    }).addTo(map).bindPopup('<b>' + name + '</b>').openPopup();
-                }
-            </script>
-        </body>
-        </html>
-        """;
-        
-        webEngine.loadContent(mapHTML);
-        
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
-                webEngine.titleProperty().addListener((obsTitle, oldTitle, newTitle) -> {
-                    if (newTitle != null && newTitle.contains(",")) {
-                        String[] coords = newTitle.split(",");
-                        selectedLat = Double.parseDouble(coords[0]);
-                        selectedLng = Double.parseDouble(coords[1]);
-                        updateCoordsLabel();
-                    }
+                mapOverlayPane.setOnMouseExited(event -> {
+                    updateCoordsLabel();
                 });
+                
+                // Click to select location
+                mapOverlayPane.setOnMouseClicked(event -> {
+                    double mouseX = event.getX();
+                    double mouseY = event.getY();
+                    
+                    double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+                    double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
+                    
+                    selectedLat = MAP_MAX_LAT - (mouseY / scaledHeight) * (MAP_MAX_LAT - MAP_MIN_LAT);
+                    selectedLng = MAP_MIN_LNG + (mouseX / scaledWidth) * (MAP_MAX_LNG - MAP_MIN_LNG);
+                    
+                    updateSelectionMarker(mouseX, mouseY);
+                    updateCoordsLabel();
+                });
+                
+                // Stack map and overlay
+                StackPane mapStack = new StackPane();
+                mapStack.getChildren().addAll(mapImageView, mapOverlayPane);
+                mapStack.setStyle("-fx-background-color: white;");
+                
+                ScrollPane scrollPane = new ScrollPane(mapStack);
+                scrollPane.setFitToWidth(true);
+                scrollPane.setFitToHeight(true);
+                scrollPane.setStyle("-fx-background-color: #ecf0f1;");
+                
+                return scrollPane;
             }
-        });
+        } catch (Exception e) {
+            System.err.println("Failed to load map: " + e.getMessage());
+        }
         
-        return webView;
+        // Fallback
+        ScrollPane scrollPane = new ScrollPane(new Label("Map not found"));
+        return scrollPane;
     }
     
-    private void updateRadiusOnMap(int radius) {
-        webEngine.executeScript("updateRadius(" + radius + ");");
+    private void updateSelectionMarker(double x, double y) {
+        // Remove old markers
+        if (selectionMarker != null) {
+            mapOverlayPane.getChildren().remove(selectionMarker);
+        }
+        if (radiusCircle != null) {
+            mapOverlayPane.getChildren().remove(radiusCircle);
+        }
+        
+        // Calculate radius in pixels
+        double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+        double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
+        double radiusPixels = metersToPixels(selectedRadius, scaledHeight);
+        
+        // Create radius circle
+        radiusCircle = new Circle(x, y, radiusPixels);
+        radiusCircle.setFill(Color.web("#f39c12", 0.3)); // Orange with transparency
+        radiusCircle.setStroke(Color.web("#f39c12"));
+        radiusCircle.setStrokeWidth(2);
+        
+        // Create center marker
+        selectionMarker = new Circle(x, y, 8);
+        selectionMarker.setFill(Color.web("#e74c3c"));
+        selectionMarker.setStroke(Color.WHITE);
+        selectionMarker.setStrokeWidth(3);
+        
+        // Add to overlay (circle first, then marker on top)
+        mapOverlayPane.getChildren().addAll(radiusCircle, selectionMarker);
+    }
+    
+    private void updateRadiusVisualization() {
+        // If we have a selection, update the radius circle
+        if (selectionMarker != null) {
+            double x = selectionMarker.getCenterX();
+            double y = selectionMarker.getCenterY();
+            updateSelectionMarker(x, y);
+        }
+    }
+    
+    private double metersToPixels(int meters, double mapHeightPixels) {
+        // Approximate conversion: 1 degree latitude ≈ 111km
+        double degreesLat = meters / 111000.0;
+        double pixelsPerDegree = mapHeightPixels / (MAP_MAX_LAT - MAP_MIN_LAT);
+        return degreesLat * pixelsPerDegree;
     }
     
     private void updateCoordsLabel() {
-        Label coordsLabel = (Label) getScene().lookup("#coordsLabel");
-        if (coordsLabel != null) {
-            coordsLabel.setText(String.format("Selected: %.6f°N, %.6f°E | Radius: %dm", 
-                                             selectedLat, selectedLng, selectedRadius));
-        }
+        coordsLabel.setText(String.format("Selected: %.6f°N, %.6f°E | Radius: %dm", 
+                                         selectedLat, selectedLng, selectedRadius));
     }
     
     private void showHazardOnMap(HazardZone zone) {
-        String color = getSeverityColor(zone.getSeverityLevel());
-        String script = String.format(
-            "showZone(%f, %f, %d, '%s', '%s');",
-            zone.getLatitude(), zone.getLongitude(), zone.getRadiusMeters(),
-            zone.getZoneName().replace("'", "\\'"), color
-        );
-        webEngine.executeScript(script);
-    }
-    
-    private String getSeverityColor(String severity) {
-        switch (severity.toLowerCase()) {
-            case "critical": return "#e74c3c";
-            case "high": return "#f39c12";
-            case "medium": return "#f1c40f";
-            case "low": return "#95a5a6";
-            default: return "#95a5a6";
-        }
+        selectedLat = zone.getLatitude();
+        selectedLng = zone.getLongitude();
+        selectedRadius = zone.getRadiusMeters();
+        
+        // Calculate pixel position
+        double scaledWidth = mapImageView.getBoundsInLocal().getWidth();
+        double scaledHeight = mapImageView.getBoundsInLocal().getHeight();
+        
+        double x = ((selectedLng - MAP_MIN_LNG) / (MAP_MAX_LNG - MAP_MIN_LNG)) * scaledWidth;
+        double y = ((MAP_MAX_LAT - selectedLat) / (MAP_MAX_LAT - MAP_MIN_LAT)) * scaledHeight;
+        
+        updateSelectionMarker(x, y);
+        updateCoordsLabel();
     }
     
     private HBox createButtonControls() {
@@ -421,46 +452,31 @@ public class HazardZoneManagerDialog extends Stage {
         }
     }
     
-private void editHazardZone() {
-    HazardZone selected = hazardTable.getSelectionModel().getSelectedItem();
-    if (selected == null) {
-        showWarning("Please select a hazard zone to edit");
-        return;
-    }
-    
-    System.out.println("📝 Editing Hazard Zone ID: " + selected.getZoneId() + " - " + selected.getZoneName());
-    
-    HazardZoneFormDialog dialog = new HazardZoneFormDialog(selected);
-    Optional<HazardZone> result = dialog.showAndWait();
-    
-    result.ifPresent(zone -> {
-        try {
-            System.out.println("💾 Saving changes to Hazard Zone ID: " + zone.getZoneId());
-            System.out.println("   Name: " + zone.getZoneName());
-            System.out.println("   Type: " + zone.getHazardType());
-            System.out.println("   Severity: " + zone.getSeverityLevel());
-            
-            boolean success = hazardZoneDAO.updateHazardZone(zone);
-            
-            if (success) {
-                showSuccess("Hazard zone updated successfully!");
-                loadHazardZones(); // Refresh table
-                System.out.println("✅ Hazard zone updated and table refreshed");
-            } else {
-                showError("Update failed - No rows were affected. Check if zone ID exists.");
-                System.err.println("❌ Update returned false - no rows affected");
-            }
-        } catch (SQLException e) {
-            showError("Database error: " + e.getMessage());
-            System.err.println("❌ SQLException during update:");
-            e.printStackTrace();
+    private void editHazardZone() {
+        HazardZone selected = hazardTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showWarning("Please select a hazard zone to edit");
+            return;
         }
-    });
-    
-    if (!result.isPresent()) {
-        System.out.println("❌ Edit dialog was cancelled");
+        
+        HazardZoneFormDialog dialog = new HazardZoneFormDialog(selected);
+        Optional<HazardZone> result = dialog.showAndWait();
+        
+        result.ifPresent(zone -> {
+            try {
+                boolean success = hazardZoneDAO.updateHazardZone(zone);
+                
+                if (success) {
+                    showSuccess("Hazard zone updated successfully!");
+                    loadHazardZones();
+                } else {
+                    showError("Update failed - No rows were affected.");
+                }
+            } catch (SQLException e) {
+                showError("Database error: " + e.getMessage());
+            }
+        });
     }
-}
     
     private void deleteHazardZone() {
         HazardZone selected = hazardTable.getSelectionModel().getSelectedItem();
