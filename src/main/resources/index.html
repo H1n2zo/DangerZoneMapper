@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ormoc Danger Zone Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Custom popup styles */
+        .hazard-popup {
+            min-width: 250px;
+        }
+        
+        .popup-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .popup-field {
+            margin: 4px 0;
+            font-size: 13px;
+        }
+        
+        .popup-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .popup-actions {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .popup-btn {
+            padding: 5px 10px;
+            margin-right: 5px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .btn-edit {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .btn-delete {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-delete:hover {
+            background-color: #da190b;
+        }
+        
+        /* Severity colors */
+        .severity-critical {
+            background-color: #d32f2f;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        .severity-high {
+            background-color: #f57c00;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        .severity-medium {
+            background-color: #fbc02d;
+            color: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        .severity-low {
+            background-color: #689f38;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        /* Legend */
+        .legend {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            margin: 4px 0;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            border: 1px solid #999;
+            vertical-align: middle;
+        }
+        
+        /* Loading indicator */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 9999;
+            display: none;
+        }
+        
+        #loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading map data...</div>
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Draw JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    
+    <script>
+        // Initialize map centered on Ormoc City
+        const map = L.map('map').setView([11.0059, 124.6075], 13);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Layer groups
+        const hazardZonesLayer = L.layerGroup().addTo(map);
+        const landmarksLayer = L.layerGroup().addTo(map);
+        const incidentsLayer = L.layerGroup();
+        const evacuationLayer = L.layerGroup().addTo(map);
+
+        // Drawing control for hazard zones
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        const drawControl = new L.Control.Draw({
+            position: 'topleft',
+            draw: {
+                polyline: false,
+                circle: false,
+                circlemarker: false,
+                rectangle: false,
+                marker: false,
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    shapeOptions: {
+                        color: '#ff0000',
+                        fillOpacity: 0.3
+                    }
+                }
+            },
+            edit: {
+                featureGroup: drawnItems
+            }
+        });
+
+        // Color mapping for hazard types
+        const hazardColors = {
+            'Flood': '#2196F3',
+            'Landslide': '#8B4513',
+            'Fire': '#F44336',
+            'Storm Surge': '#00BCD4',
+            'Typhoon': '#9C27B0'
+        };
+
+        // Severity opacity mapping
+        const severityOpacity = {
+            'Critical': 0.6,
+            'High': 0.5,
+            'Medium': 0.4,
+            'Low': 0.3
+        };
+
+        // API base URL
+        const API_BASE = 'http://localhost:8080/api';
+
+        // Load all data
+        async function loadAllData() {
+            showLoading();
+            try {
+                await Promise.all([
+                    loadHazardZones(),
+                    loadLandmarks(),
+                    loadIncidents()
+                ]);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load map data. Please check the server connection.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Load hazard zones
+        async function loadHazardZones() {
+            try {
+                const response = await fetch(`${API_BASE}/hazardzones`);
+                const zones = await response.json();
+                
+                hazardZonesLayer.clearLayers();
+                
+                zones.forEach(zone => {
+                    if (zone.geojson) {
+                        try {
+                            const geojson = JSON.parse(zone.geojson);
+                            const color = hazardColors[zone.hazardType] || '#999';
+                            const opacity = severityOpacity[zone.severityLevel] || 0.4;
+                            
+                            const layer = L.geoJSON(geojson, {
+                                style: {
+                                    color: color,
+                                    fillColor: color,
+                                    fillOpacity: opacity,
+                                    weight: 2
+                                }
+                            }).bindPopup(createHazardZonePopup(zone));
+                            
+                            hazardZonesLayer.addLayer(layer);
+                            
+                            // Store zone data for editing
+                            layer.zoneData = zone;
+                        } catch (e) {
+                            console.error('Error parsing GeoJSON for zone:', zone.zoneId, e);
+                        }
+                    } else if (zone.latitude && zone.longitude) {
+                        // Fallback to point marker
+                        const color = hazardColors[zone.hazardType] || '#999';
+                        const marker = L.circleMarker([zone.latitude, zone.longitude], {
+                            radius: 10,
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.5
+                        }).bindPopup(createHazardZonePopup(zone));
+                        
+                        hazardZonesLayer.addLayer(marker);
+                        marker.zoneData = zone;
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading hazard zones:', error);
+            }
+        }
+
+        // Load landmarks
+        async function loadLandmarks() {
+            try {
+                const response = await fetch(`${API_BASE}/landmarks`);
+                const landmarks = await response.json();
+                
+                landmarksLayer.clearLayers();
+                evacuationLayer.clearLayers();
+                
+                landmarks.forEach(landmark => {
+                    if (landmark.latitude && landmark.longitude) {
+                        const icon = L.divIcon({
+                            className: 'custom-marker',
+                            html: landmark.isEvacuationSite ? 
+                                  '<div style="color: green; font-size: 24px;">🏥</div>' : 
+                                  '<div style="color: blue; font-size: 24px;">📍</div>',
+                            iconSize: [30, 30]
+                        });
+                        
+                        const marker = L.marker([landmark.latitude, landmark.longitude], { icon })
+                            .bindPopup(createLandmarkPopup(landmark));
+                        
+                        if (landmark.isEvacuationSite) {
+                            evacuationLayer.addLayer(marker);
+                        } else {
+                            landmarksLayer.addLayer(marker);
+                        }
+                        
+                        marker.landmarkData = landmark;
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading landmarks:', error);
+            }
+        }
+
+        // Load incidents
+        async function loadIncidents() {
+            try {
+                const response = await fetch(`${API_BASE}/incidents`);
+                const incidents = await response.json();
+                
+                incidentsLayer.clearLayers();
+                
+                incidents.forEach(incident => {
+                    if (incident.latitude && incident.longitude) {
+                        const marker = L.circleMarker([incident.latitude, incident.longitude], {
+                            radius: 6,
+                            color: '#666',
+                            fillColor: '#ff0000',
+                            fillOpacity: 0.7
+                        }).bindPopup(createIncidentPopup(incident));
+                        
+                        incidentsLayer.addLayer(marker);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading incidents:', error);
+            }
+        }
+
+        // Create hazard zone popup
+        function createHazardZonePopup(zone) {
+            const severityClass = `severity-${zone.severityLevel.toLowerCase()}`;
+            return `
+                <div class="hazard-popup">
+                    <div class="popup-title">${zone.zoneName}</div>
+                    <div class="popup-field">
+                        <span class="popup-label">Type:</span> ${zone.hazardType}
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Severity:</span> 
+                        <span class="${severityClass}">${zone.severityLevel}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Barangay:</span> ${zone.barangay || 'N/A'}
+                    </div>
+                    ${zone.description ? `<div class="popup-field">
+                        <span class="popup-label">Description:</span><br/>
+                        ${zone.description}
+                    </div>` : ''}
+                    ${zone.affectedPopulation ? `<div class="popup-field">
+                        <span class="popup-label">Affected Population:</span> 
+                        ${zone.affectedPopulation.toLocaleString()}
+                    </div>` : ''}
+                    <div class="popup-actions">
+                        <button class="popup-btn btn-edit" onclick="editHazardZone(${zone.zoneId})">
+                            Edit
+                        </button>
+                        <button class="popup-btn btn-delete" onclick="deleteHazardZone(${zone.zoneId})">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create landmark popup
+        function createLandmarkPopup(landmark) {
+            return `
+                <div class="hazard-popup">
+                    <div class="popup-title">${landmark.landmarkName}</div>
+                    <div class="popup-field">
+                        <span class="popup-label">Type:</span> ${landmark.landmarkType}
+                    </div>
+                    ${landmark.address ? `<div class="popup-field">
+                        <span class="popup-label">Address:</span> ${landmark.address}
+                    </div>` : ''}
+                    ${landmark.barangay ? `<div class="popup-field">
+                        <span class="popup-label">Barangay:</span> ${landmark.barangay}
+                    </div>` : ''}
+                    ${landmark.isEvacuationSite ? `<div class="popup-field">
+                        <span class="popup-label">Capacity:</span> ${landmark.capacity || 'N/A'}
+                    </div>` : ''}
+                    ${landmark.facilities ? `<div class="popup-field">
+                        <span class="popup-label">Facilities:</span> ${landmark.facilities}
+                    </div>` : ''}
+                    <div class="popup-actions">
+                        <button class="popup-btn btn-edit" onclick="editLandmark(${landmark.landmarkId})">
+                            Edit
+                        </button>
+                        <button class="popup-btn btn-delete" onclick="deleteLandmark(${landmark.landmarkId})">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create incident popup
+        function createIncidentPopup(incident) {
+            return `
+                <div class="hazard-popup">
+                    <div class="popup-title">${incident.incidentType}</div>
+                    <div class="popup-field">
+                        <span class="popup-label">Date:</span> ${incident.incidentDate}
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Barangay:</span> ${incident.barangay}
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Casualties:</span> ${incident.casualties}
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Injuries:</span> ${incident.injuries}
+                    </div>
+                    ${incident.description ? `<div class="popup-field">
+                        <span class="popup-label">Description:</span><br/>
+                        ${incident.description}
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        // Add legend
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = `
+                <div class="legend-title">Hazard Types</div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: ${hazardColors.Flood}"></span>
+                    Flood
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: ${hazardColors.Landslide}"></span>
+                    Landslide
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: ${hazardColors.Fire}"></span>
+                    Fire
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: ${hazardColors['Storm Surge']}"></span>
+                    Storm Surge
+                </div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // Helper functions
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        function resetMapView() {
+            map.setView([11.0059, 124.6075], 13);
+        }
+
+        function toggleLayer(layerName, visible) {
+            const layers = {
+                'hazardZones': hazardZonesLayer,
+                'landmarks': landmarksLayer,
+                'incidents': incidentsLayer,
+                'evacuation': evacuationLayer
+            };
+            
+            if (layers[layerName]) {
+                if (visible) {
+                    map.addLayer(layers[layerName]);
+                } else {
+                    map.removeLayer(layers[layerName]);
+                }
+            }
+        }
+
+        // Placeholder functions for JavaFX interaction
+        function startDrawingHazardZone() {
+            alert('Click on the map to start drawing a hazard zone polygon. Double-click to finish.');
+            // Enable drawing mode
+            new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+        }
+
+        function startAddingLandmark() {
+            alert('Click on the map to add a landmark marker.');
+            // Enable marker placement
+            map.once('click', function(e) {
+                const landmarkName = prompt('Enter landmark name:');
+                if (landmarkName) {
+                    const landmarkType = prompt('Enter landmark type (e.g., Hospital, School):');
+                    if (landmarkType) {
+                        const landmark = {
+                            landmarkName,
+                            landmarkType,
+                            latitude: e.latlng.lat,
+                            longitude: e.latlng.lng,
+                            geojson: JSON.stringify({
+                                type: 'Feature',
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: [e.latlng.lng, e.latlng.lat]
+                                }
+                            })
+                        };
+                        saveLandmark(landmark);
+                    }
+                }
+            });
+        }
+
+        async function saveLandmark(landmark) {
+            try {
+                const response = await fetch(`${API_BASE}/landmarks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(landmark)
+                });
+                
+                if (response.ok) {
+                    alert('Landmark added successfully!');
+                    loadLandmarks();
+                } else {
+                    alert('Failed to add landmark');
+                }
+            } catch (error) {
+                console.error('Error saving landmark:', error);
+                alert('Error saving landmark');
+            }
+        }
+
+        async function deleteHazardZone(zoneId) {
+            if (!confirm('Are you sure you want to delete this hazard zone?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/hazardzones/${zoneId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('Hazard zone deleted successfully!');
+                    loadHazardZones();
+                } else {
+                    alert('Failed to delete hazard zone');
+                }
+            } catch (error) {
+                console.error('Error deleting hazard zone:', error);
+            }
+        }
+
+        async function deleteLandmark(landmarkId) {
+            if (!confirm('Are you sure you want to delete this landmark?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/landmarks/${landmarkId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('Landmark deleted successfully!');
+                    loadLandmarks();
+                } else {
+                    alert('Failed to delete landmark');
+                }
+            } catch (error) {
+                console.error('Error deleting landmark:', error);
+            }
+        }
+
+        function editHazardZone(zoneId) {
+            alert('Edit functionality will open a form dialog.');
+        }
+
+        function editLandmark(landmarkId) {
+            alert('Edit functionality will open a form dialog.');
+        }
+
+        function toggleEditMode() {
+            alert('Edit mode enabled. Click on zones or landmarks to edit them.');
+        }
+
+        function applyFilters(barangay, hazardType, severity) {
+            // Reload data with filters
+            console.log('Applying filters:', barangay, hazardType, severity);
+        }
+
+        function clearFilters() {
+            loadAllData();
+        }
+
+        // Handle drawing events
+        map.on(L.Draw.Event.CREATED, function(event) {
+            const layer = event.layer;
+            const geojson = layer.toGeoJSON();
+            
+            // Prompt for hazard zone details
+            const zoneName = prompt('Enter hazard zone name:');
+            if (!zoneName) return;
+            
+            const hazardType = prompt('Enter hazard type (Flood/Landslide/Fire/Storm Surge):');
+            if (!hazardType) return;
+            
+            const severity = prompt('Enter severity (Critical/High/Medium/Low):');
+            if (!severity) return;
+            
+            const zone = {
+                zoneName,
+                hazardType,
+                severityLevel: severity,
+                geojson: JSON.stringify(geojson)
+            };
+            
+            saveHazardZone(zone);
+        });
+
+        async function saveHazardZone(zone) {
+            try {
+                const response = await fetch(`${API_BASE}/hazardzones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(zone)
+                });
+                
+                if (response.ok) {
+                    alert('Hazard zone added successfully!');
+                    loadHazardZones();
+                } else {
+                    alert('Failed to add hazard zone');
+                }
+            } catch (error) {
+                console.error('Error saving hazard zone:', error);
+                alert('Error saving hazard zone');
+            }
+        }
+
+        // Initialize
+        loadAllData();
+    </script>
+</body>
+</html>
