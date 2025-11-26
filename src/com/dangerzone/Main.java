@@ -3,6 +3,7 @@ package com.dangerzone;
 import com.dangerzone.models.*;
 import com.dangerzone.views.*;
 import com.dangerzone.utils.DataExporter;
+import com.dangerzone.utils.StyleManager;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -45,6 +46,9 @@ public class Main extends Application {
         root = new BorderPane();
         root.setPadding(new Insets(10));
         
+        // Apply modern theme to root
+        StyleManager.applyModernTheme(root);
+        
         MenuBar menuBar = createMenuBar();
         root.setTop(menuBar);
         
@@ -62,6 +66,7 @@ public class Main extends Application {
     
     private MenuBar createMenuBar() {
         MenuBar menuBar = new MenuBar();
+        StyleManager.styleMenuBar(menuBar);
         
         Menu fileMenu = new Menu("File");
         MenuItem exportLandmarks = new MenuItem("Export Landmarks to CSV");
@@ -106,6 +111,7 @@ public class Main extends Application {
     
     private TabPane createMainContent() {
         TabPane tabPane = new TabPane();
+        StyleManager.styleTabPane(tabPane);
         
         Tab dashboardTab = new Tab("📊 Dashboard");
         dashboardTab.setClosable(false);
@@ -134,27 +140,24 @@ public class Main extends Application {
     
     private VBox createMapView() {
         VBox container = new VBox(15);
-        container.setPadding(new Insets(10));
-        container.setStyle("-fx-background-color: #ecf0f1;");
+        container.setPadding(new Insets(15));
+        container.setStyle("-fx-background-color: " + StyleManager.LIGHT_BG + ";");
 
         Label titleLabel = new Label("🗺 Ormoc City Hazard Map");
-        titleLabel.setStyle("-fx-font-size: 22; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        StyleManager.styleTitleLabel(titleLabel);
 
-        HBox controlsBox = new HBox(15);
-        controlsBox.setAlignment(Pos.CENTER);
-        controlsBox.setPadding(new Insets(10));
-        controlsBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 8;");
+        HBox controlsBox = StyleManager.createToolbar();
         
         CheckBox showLandmarks = new CheckBox("Show Landmarks");
         showLandmarks.setSelected(true);
-        showLandmarks.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        showLandmarks.setStyle("-fx-font-weight: bold;");
         
         CheckBox showHazards = new CheckBox("Show Hazard Zones");
         showHazards.setSelected(true);
-        showHazards.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        showHazards.setStyle("-fx-font-weight: bold;");
         
         Button refreshBtn = new Button("🔄 Refresh");
-        refreshBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        StyleManager.styleSuccessButton(refreshBtn);
         refreshBtn.setOnAction(e -> refreshMapMarkers());
         
         showLandmarks.setOnAction(e -> loadMarkersFromDatabase(showLandmarks.isSelected(), showHazards.isSelected()));
@@ -162,7 +165,8 @@ public class Main extends Application {
         
         // Mouse coordinates label
         mouseCoordinatesLabel = new Label("Hover over map for coordinates");
-        mouseCoordinatesLabel.setStyle("-fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold;");
+        mouseCoordinatesLabel.setStyle("-fx-font-size: 12; -fx-font-weight: bold; " +
+                                       "-fx-text-fill: " + StyleManager.TEXT_PRIMARY + ";");
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -225,8 +229,7 @@ public class Main extends Application {
                 // Stack map and overlay
                 StackPane mapStack = new StackPane();
                 mapStack.getChildren().addAll(mapImageView, mapOverlayPane);
-                mapStack.setStyle("-fx-background-color: white; -fx-padding: 10; " +
-                                 "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);");
+                StyleManager.styleCard(mapStack);
                 
                 mapScrollPane = new ScrollPane(mapStack);
                 mapScrollPane.setFitToWidth(true);
@@ -297,10 +300,10 @@ public class Main extends Application {
         
         // Color based on type
         if (landmark.isEvacuationSite()) {
-            marker.setFill(Color.web("#27ae60")); // Green for evacuation
+            marker.setFill(Color.web(StyleManager.SUCCESS_COLOR)); // Green for evacuation
             marker.setRadius(10);
         } else {
-            marker.setFill(Color.web("#3498db")); // Blue for landmark
+            marker.setFill(Color.web(StyleManager.ACCENT_COLOR)); // Blue for landmark
         }
         
         marker.setStroke(Color.WHITE);
@@ -339,10 +342,10 @@ public class Main extends Application {
         Color fillColor;
         switch (hazard.getSeverityLevel().toLowerCase()) {
             case "critical":
-                fillColor = Color.web("#e74c3c", 0.4);
+                fillColor = Color.web(StyleManager.DANGER_COLOR, 0.4);
                 break;
             case "high":
-                fillColor = Color.web("#f39c12", 0.35);
+                fillColor = Color.web(StyleManager.WARNING_COLOR, 0.35);
                 break;
             case "medium":
                 fillColor = Color.web("#f1c40f", 0.3);
@@ -433,6 +436,8 @@ public class Main extends Application {
         alert.setTitle("Landmark Details");
         alert.setHeaderText(landmark.getName());
         
+        StyleManager.styleDialog(alert.getDialogPane());
+        
         StringBuilder content = new StringBuilder();
         content.append("Type: ").append(landmark.getType()).append("\n");
         content.append("Barangay: ").append(landmark.getBarangay()).append("\n");
@@ -457,6 +462,8 @@ public class Main extends Application {
         alert.setTitle("Hazard Zone Details");
         alert.setHeaderText(hazard.getZoneName());
         
+        StyleManager.styleDialog(alert.getDialogPane());
+        
         StringBuilder content = new StringBuilder();
         content.append("Type: ").append(hazard.getHazardType()).append("\n");
         content.append("Severity: ").append(hazard.getSeverityLevel()).append("\n");
@@ -476,13 +483,13 @@ public class Main extends Application {
         VBox messageBox = new VBox(15);
         messageBox.setAlignment(Pos.CENTER);
         messageBox.setPadding(new Insets(50));
-        messageBox.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
+        StyleManager.styleCard(messageBox);
         
         Label icon = new Label("🗺️");
         icon.setStyle("-fx-font-size: 48;");
         
         Label message = new Label("No map available");
-        message.setStyle("-fx-font-size: 18; -fx-font-weight: bold;");
+        StyleManager.styleSubtitleLabel(message);
         
         messageBox.getChildren().addAll(icon, message);
         VBox.setVgrow(messageBox, Priority.ALWAYS);
@@ -493,31 +500,30 @@ public class Main extends Application {
         VBox errorBox = new VBox(10);
         errorBox.setAlignment(Pos.CENTER);
         errorBox.setPadding(new Insets(30));
-        errorBox.setStyle("-fx-background-color: #fee; -fx-border-color: #e74c3c;");
+        errorBox.setStyle("-fx-background-color: #fee; -fx-border-color: " + 
+                         StyleManager.DANGER_COLOR + "; -fx-border-radius: 8; " +
+                         "-fx-background-radius: 8;");
         
         Label errorLabel = new Label(message);
         errorLabel.setWrapText(true);
+        errorLabel.setStyle("-fx-text-fill: " + StyleManager.DANGER_COLOR + ";");
         errorBox.getChildren().add(errorLabel);
         VBox.setVgrow(errorBox, Priority.ALWAYS);
         container.getChildren().add(errorBox);
     }
     
     private HBox createLegend() {
-        HBox legend = new HBox(20);
-        legend.setAlignment(Pos.CENTER);
-        legend.setPadding(new Insets(15));
-        legend.setStyle("-fx-background-color: white; -fx-border-color: #bdc3c7; " +
-                       "-fx-border-radius: 8; -fx-background-radius: 8;");
+        HBox legend = StyleManager.createLegendBox();
 
         Label legendTitle = new Label("LEGEND:");
-        legendTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+        StyleManager.styleSectionHeader(legendTitle);
         
         legend.getChildren().addAll(
             legendTitle,
-            createLegendItem("📍 Landmark", "#3498db"),
-            createLegendItem("🏥 Evacuation Center", "#27ae60"),
-            createLegendItem("🔴 Critical Hazard", "#e74c3c"),
-            createLegendItem("🟠 High Hazard", "#f39c12"),
+            createLegendItem("📍 Landmark", StyleManager.ACCENT_COLOR),
+            createLegendItem("🏥 Evacuation Center", StyleManager.SUCCESS_COLOR),
+            createLegendItem("🔴 Critical Hazard", StyleManager.DANGER_COLOR),
+            createLegendItem("🟠 High Hazard", StyleManager.WARNING_COLOR),
             createLegendItem("🟡 Medium Hazard", "#f1c40f"),
             createLegendItem("⚪ Low Hazard", "#95a5a6")
         );
@@ -531,7 +537,10 @@ public class Main extends Application {
         
         Region colorBox = new Region();
         colorBox.setPrefSize(20, 20);
-        colorBox.setStyle("-fx-background-color: " + color + "; -fx-border-color: #2c3e50; -fx-border-width: 2;");
+        colorBox.setStyle("-fx-background-color: " + color + "; " +
+                         "-fx-border-color: " + StyleManager.PRIMARY_COLOR + "; " +
+                         "-fx-border-width: 2; -fx-border-radius: 4; " +
+                         "-fx-background-radius: 4;");
         
         Label itemLabel = new Label(label);
         itemLabel.setStyle("-fx-font-size: 12;");
@@ -541,30 +550,39 @@ public class Main extends Application {
     }
     
     private VBox createHistoricalView() {
-        VBox container = new VBox(10);
-        container.setPadding(new Insets(10));
+        VBox container = new VBox(15);
+        container.setPadding(new Insets(20));
+        container.setStyle("-fx-background-color: " + StyleManager.LIGHT_BG + ";");
 
         Label title = new Label("📜 Historical Incidents");
-        title.setStyle("-fx-font-size: 18; -fx-font-weight: bold;");
+        StyleManager.styleTitleLabel(title);
 
-        HBox filters = new HBox(10);
+        HBox filters = new HBox(15);
         filters.setAlignment(Pos.CENTER_LEFT);
+        filters.setPadding(new Insets(10));
+        StyleManager.styleCard(filters);
 
         ComboBox<String> yearFilter = new ComboBox<>();
+        StyleManager.styleComboBox(yearFilter);
         yearFilter.getItems().addAll("All", "2024", "2023", "2022", "2021", "2020", "2013", "2011", "1991");
         yearFilter.setValue("All");
 
         ComboBox<String> typeFilter = new ComboBox<>();
+        StyleManager.styleComboBox(typeFilter);
         typeFilter.getItems().addAll("All", "Flood", "Fire", "Landslide", "Storm Surge", "Typhoon");
         typeFilter.setValue("All");
 
         TextArea summaryArea = new TextArea();
+        StyleManager.styleTextArea(summaryArea);
         summaryArea.setEditable(false);
         summaryArea.setWrapText(true);
         VBox.setVgrow(summaryArea, Priority.ALWAYS);
 
         Button applyBtn = new Button("Apply Filter");
+        StyleManager.stylePrimaryButton(applyBtn);
+        
         Button manageBtn = new Button("Manage Incidents");
+        StyleManager.styleSecondaryButton(manageBtn);
         
         applyBtn.setOnAction(e -> filterIncidents(yearFilter.getValue(), typeFilter.getValue(), summaryArea));
         manageBtn.setOnAction(e -> openIncidentManager());
@@ -612,13 +630,19 @@ public class Main extends Application {
     }
     
     private VBox createSafetyView() {
-        VBox container = new VBox(15);
+        VBox container = new VBox(20);
         container.setPadding(new Insets(20));
+        container.setStyle("-fx-background-color: " + StyleManager.LIGHT_BG + ";");
         
         Label title = new Label("🚨 Emergency Safety Guidelines");
-        title.setStyle("-fx-font-size: 24; -fx-font-weight: bold;");
+        StyleManager.styleTitleLabel(title);
+        
+        VBox contentBox = new VBox(10);
+        contentBox.setPadding(new Insets(20));
+        StyleManager.styleCard(contentBox);
         
         TextArea guidelines = new TextArea();
+        StyleManager.styleTextArea(guidelines);
         guidelines.setWrapText(true);
         guidelines.setEditable(false);
         guidelines.setText(
@@ -641,23 +665,24 @@ public class Main extends Application {
         );
         VBox.setVgrow(guidelines, Priority.ALWAYS);
         
-        container.getChildren().addAll(title, guidelines);
+        contentBox.getChildren().add(guidelines);
+        container.getChildren().addAll(title, contentBox);
         return container;
     }
     
     private HBox createStatusBar() {
         HBox statusBar = new HBox(10);
-        statusBar.setPadding(new Insets(5));
-        statusBar.setStyle("-fx-background-color: #34495e;");
+        statusBar.setPadding(new Insets(8, 15, 8, 15));
+        statusBar.setStyle("-fx-background-color: " + StyleManager.PRIMARY_COLOR + ";");
         
         Label status = new Label("✅ Ready - Danger Zone Mapping v1.0");
-        status.setStyle("-fx-text-fill: white;");
+        status.setStyle("-fx-text-fill: white; -fx-font-size: 12px;");
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
         Label location = new Label("📍 Ormoc City, Leyte");
-        location.setStyle("-fx-text-fill: white;");
+        location.setStyle("-fx-text-fill: white; -fx-font-size: 12px;");
         
         statusBar.getChildren().addAll(status, spacer, location);
         return statusBar;

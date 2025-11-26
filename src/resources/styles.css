@@ -1,0 +1,605 @@
+/* ========================================
+   Danger Zone Mapping System - Ormoc City
+   Professional Application Stylesheet
+   ======================================== */
+
+/* === ROOT VARIABLES === */
+.root {
+    /* Color Palette */
+    -fx-primary: #2c3e50;
+    -fx-secondary: #34495e;
+    -fx-accent: #3498db;
+    -fx-success: #27ae60;
+    -fx-warning: #f39c12;
+    -fx-danger: #e74c3c;
+    -fx-info: #16a085;
+    
+    /* Hazard Colors */
+    -fx-hazard-critical: #e74c3c;
+    -fx-hazard-high: #f39c12;
+    -fx-hazard-medium: #f1c40f;
+    -fx-hazard-low: #95a5a6;
+    
+    /* Background Colors */
+    -fx-bg-light: #ecf0f1;
+    -fx-bg-dark: #2c3e50;
+    -fx-bg-white: #ffffff;
+    
+    /* Text Colors */
+    -fx-text-primary: #2c3e50;
+    -fx-text-secondary: #7f8c8d;
+    -fx-text-white: #ffffff;
+    
+    /* Borders */
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 5px;
+    
+    /* Shadows */
+    -fx-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    -fx-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* === MENU BAR === */
+.menu-bar {
+    -fx-background-color: -fx-primary;
+    -fx-padding: 5px 10px;
+}
+
+.menu-bar .label {
+    -fx-text-fill: -fx-text-white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.menu-bar .menu-button:hover,
+.menu-bar .menu-button:showing {
+    -fx-background-color: -fx-secondary;
+}
+
+.context-menu {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);
+}
+
+.menu-item {
+    -fx-padding: 8px 20px;
+}
+
+.menu-item:hover {
+    -fx-background-color: -fx-bg-light;
+}
+
+.menu-item .label {
+    -fx-text-fill: -fx-text-primary;
+}
+
+/* === TAB PANE === */
+.tab-pane {
+    -fx-background-color: -fx-bg-white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: -fx-bg-light;
+    -fx-padding: 5px 10px 0 10px;
+}
+
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 5px 5px 0 0;
+    -fx-border-color: transparent;
+    -fx-padding: 10px 20px;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: -fx-bg-white;
+    -fx-border-color: -fx-border-color -fx-border-color transparent -fx-border-color;
+    -fx-border-width: 1px 1px 0 1px;
+}
+
+.tab-pane .tab:hover {
+    -fx-background-color: derive(-fx-bg-light, -5%);
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: -fx-accent;
+}
+
+/* === BUTTONS === */
+.button {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 16px;
+    -fx-background-radius: 5px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 4, 0, 0, 2);
+}
+
+.button:hover {
+    -fx-background-color: derive(-fx-accent, -10%);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 6, 0, 0, 2);
+}
+
+.button:pressed {
+    -fx-background-color: derive(-fx-accent, -20%);
+    -fx-translate-y: 1px;
+}
+
+.button:disabled {
+    -fx-opacity: 0.5;
+    -fx-cursor: default;
+}
+
+/* Button Variants */
+.button.success {
+    -fx-background-color: -fx-success;
+}
+
+.button.success:hover {
+    -fx-background-color: derive(-fx-success, -10%);
+}
+
+.button.warning {
+    -fx-background-color: -fx-warning;
+}
+
+.button.warning:hover {
+    -fx-background-color: derive(-fx-warning, -10%);
+}
+
+.button.danger {
+    -fx-background-color: -fx-danger;
+}
+
+.button.danger:hover {
+    -fx-background-color: derive(-fx-danger, -10%);
+}
+
+.button.secondary {
+    -fx-background-color: -fx-secondary;
+}
+
+.button.secondary:hover {
+    -fx-background-color: derive(-fx-secondary, -10%);
+}
+
+/* === TEXT FIELDS === */
+.text-field, .text-area {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-padding: 8px 12px;
+    -fx-font-size: 13px;
+}
+
+.text-field:focused, .text-area:focused {
+    -fx-border-color: -fx-accent;
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(gaussian, rgba(52, 152, 219, 0.3), 5, 0, 0, 0);
+}
+
+.text-field:disabled, .text-area:disabled {
+    -fx-background-color: -fx-bg-light;
+    -fx-opacity: 0.6;
+}
+
+/* === COMBO BOX === */
+.combo-box {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+}
+
+.combo-box:focused {
+    -fx-border-color: -fx-accent;
+    -fx-border-width: 2px;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);
+}
+
+.combo-box-popup .list-cell {
+    -fx-padding: 8px 12px;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: -fx-bg-light;
+}
+
+.combo-box-popup .list-cell:selected {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: white;
+}
+
+/* === DATE PICKER === */
+.date-picker {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+}
+
+.date-picker:focused {
+    -fx-border-color: -fx-accent;
+    -fx-border-width: 2px;
+}
+
+/* === CHECK BOX === */
+.check-box {
+    -fx-font-size: 13px;
+}
+
+.check-box .box {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 2px;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.check-box:selected .box {
+    -fx-background-color: -fx-accent;
+    -fx-border-color: -fx-accent;
+}
+
+.check-box:hover .box {
+    -fx-border-color: -fx-accent;
+}
+
+/* === TABLE VIEW === */
+.table-view {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+}
+
+.table-view .column-header {
+    -fx-background-color: -fx-bg-light;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 10px 5px;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 0 0 2px 0;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.table-view .table-cell {
+    -fx-padding: 8px 5px;
+    -fx-font-size: 12px;
+    -fx-border-color: transparent transparent -fx-bg-light transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.table-row-cell {
+    -fx-background-color: white;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: derive(white, -2%);
+}
+
+.table-row-cell:selected {
+    -fx-background-color: derive(-fx-accent, 40%);
+}
+
+.table-row-cell:hover {
+    -fx-background-color: -fx-bg-light;
+}
+
+/* === LABELS === */
+.label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 13px;
+}
+
+.label.title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-primary;
+}
+
+.label.subtitle {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-secondary;
+}
+
+.label.section-header {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-primary;
+    -fx-padding: 5px 0;
+}
+
+.label.required::after {
+    -fx-content: " *";
+    -fx-text-fill: -fx-danger;
+}
+
+/* === DIALOGS === */
+.dialog-pane {
+    -fx-background-color: white;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 15, 0, 0, 5);
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: -fx-primary;
+    -fx-background-radius: 10px 10px 0 0;
+    -fx-padding: 15px;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane .content {
+    -fx-padding: 20px;
+}
+
+.dialog-pane .button-bar {
+    -fx-padding: 10px 20px 20px 20px;
+}
+
+/* === ALERTS === */
+.alert.information .header-panel {
+    -fx-background-color: -fx-info;
+}
+
+.alert.warning .header-panel {
+    -fx-background-color: -fx-warning;
+}
+
+.alert.error .header-panel {
+    -fx-background-color: -fx-danger;
+}
+
+.alert.confirmation .header-panel {
+    -fx-background-color: -fx-accent;
+}
+
+/* === SCROLL PANE === */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: white;
+}
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: derive(-fx-border-color, -20%);
+    -fx-background-radius: 5px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: derive(-fx-border-color, -40%);
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+/* === PROGRESS BAR === */
+.progress-bar {
+    -fx-background-color: -fx-bg-light;
+    -fx-background-radius: 10px;
+}
+
+.progress-bar .bar {
+    -fx-background-color: -fx-accent;
+    -fx-background-radius: 10px;
+    -fx-background-insets: 0;
+}
+
+/* === SEPARATOR === */
+.separator {
+    -fx-background-color: -fx-border-color;
+}
+
+/* === TOOLTIP === */
+.tooltip {
+    -fx-background-color: -fx-primary;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 8px 12px;
+    -fx-background-radius: 5px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2);
+}
+
+/* === LIST VIEW === */
+.list-view {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+}
+
+.list-cell {
+    -fx-background-color: white;
+    -fx-padding: 10px;
+    -fx-border-color: transparent transparent -fx-bg-light transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: -fx-bg-light;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: derive(-fx-accent, 40%);
+}
+
+/* === SPLIT PANE === */
+.split-pane {
+    -fx-background-color: white;
+}
+
+.split-pane-divider {
+    -fx-background-color: -fx-border-color;
+    -fx-padding: 0 2px 0 2px;
+}
+
+/* === CUSTOM DASHBOARD CARDS === */
+.stat-card {
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 3);
+    -fx-padding: 20px;
+}
+
+.stat-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 15, 0, 0, 5);
+    -fx-translate-y: -2px;
+}
+
+/* === LEGEND === */
+.legend-container {
+    -fx-background-color: -fx-bg-light;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-padding: 10px 15px;
+}
+
+.legend-item {
+    -fx-spacing: 5px;
+    -fx-padding: 3px 8px;
+}
+
+.legend-color-box {
+    -fx-border-color: -fx-primary;
+    -fx-border-width: 1px;
+}
+
+/* === STATUS BAR === */
+.status-bar {
+    -fx-background-color: -fx-primary;
+    -fx-padding: 8px 15px;
+}
+
+.status-bar .label {
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+}
+
+/* === WEB VIEW === */
+.web-view {
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+}
+
+/* === CONTEXT MENUS === */
+.context-menu {
+    -fx-background-color: white;
+    -fx-background-radius: 5px;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 10, 0, 0, 3);
+}
+
+/* === SLIDER === */
+.slider .track {
+    -fx-background-color: -fx-bg-light;
+    -fx-background-radius: 5px;
+}
+
+.slider .thumb {
+    -fx-background-color: -fx-accent;
+    -fx-background-radius: 10px;
+}
+
+.slider .thumb:hover {
+    -fx-background-color: derive(-fx-accent, -10%);
+}
+
+/* === TREE VIEW === */
+.tree-view {
+    -fx-background-color: white;
+    -fx-border-color: -fx-border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+}
+
+.tree-cell {
+    -fx-padding: 5px;
+}
+
+.tree-cell:selected {
+    -fx-background-color: derive(-fx-accent, 40%);
+}
+
+/* === SEVERITY COLOR CODING === */
+.severity-critical {
+    -fx-background-color: -fx-hazard-critical;
+    -fx-text-fill: white;
+}
+
+.severity-high {
+    -fx-background-color: -fx-hazard-high;
+    -fx-text-fill: white;
+}
+
+.severity-medium {
+    -fx-background-color: -fx-hazard-medium;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.severity-low {
+    -fx-background-color: -fx-hazard-low;
+    -fx-text-fill: white;
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeIn {
+    from { -fx-opacity: 0; }
+    to { -fx-opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { -fx-translate-y: -20px; -fx-opacity: 0; }
+    to { -fx-translate-y: 0; -fx-opacity: 1; }
+}
+
+/* === PRINT STYLES === */
+@media print {
+    .button,
+    .menu-bar,
+    .status-bar {
+        -fx-opacity: 0;
+    }
+}

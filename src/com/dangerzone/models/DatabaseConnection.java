@@ -10,7 +10,7 @@ import java.sql.SQLException;
 
 public class DatabaseConnection {
     
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/dangerzone_ormoc";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/dangerzonemapper";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = ""; // Change if you set a password
     private static Connection connection = null;
