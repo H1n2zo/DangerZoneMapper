@@ -215,29 +215,34 @@ public class UIComponentFactory {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Safety Guidelines");
         alert.setHeaderText("Emergency Preparedness");
-        alert.setContentText(
-            "FLOOD SAFETY:\n" +
-            "• Move to higher ground immediately\n" +
-            "• Avoid walking through floodwater\n" +
-            "• Turn off utilities before evacuating\n\n" +
-            "LANDSLIDE SAFETY:\n" +
-            "• Watch for cracks in walls and tilting trees\n" +
-            "• Evacuate if you hear rumbling sounds\n" +
-            "• Move quickly away from the path\n\n" +
-            "FIRE SAFETY:\n" +
-            "• Call emergency: 911\n" +
-            "• Evacuate immediately\n" +
-            "• Stay low, cover mouth\n\n" +
-            "EARTHQUAKE SAFETY:\n" +
-            "• Drop, Cover, Hold On\n" +
-            "• Stay away from windows\n" +
-            "• Be prepared for aftershocks\n\n" +
-            "TYPHOON SAFETY:\n" +
-            "• Stay indoors\n" +
-            "• Secure loose objects\n" +
-            "• Listen to emergency broadcasts\n\n" +
-            "Emergency Hotline: 911"
-        );
+        alert.setContentText("""
+            FLOOD SAFETY:
+            • Move to higher ground immediately
+            • Avoid walking through floodwater
+            • Turn off utilities before evacuating
+            
+            LANDSLIDE SAFETY:
+            • Watch for cracks in walls and tilting trees
+            • Evacuate if you hear rumbling sounds
+            • Move quickly away from the path
+            
+            FIRE SAFETY:
+            • Call emergency: 911
+            • Evacuate immediately
+            • Stay low, cover mouth
+            
+            EARTHQUAKE SAFETY:
+            • Drop, Cover, Hold On
+            • Stay away from windows
+            • Be prepared for aftershocks
+            
+            TYPHOON SAFETY:
+            • Stay indoors
+            • Secure loose objects
+            • Listen to emergency broadcasts
+            
+            Emergency Hotline: 911
+            """);
         alert.getDialogPane().setPrefWidth(400);
         alert.showAndWait();
     }

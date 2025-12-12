@@ -63,15 +63,16 @@ public class HazardZone {
      * Get detailed information as formatted string
      */
     public String getDetailedInfo() {
-        return String.format(
-            "ID: #%d\n" +
-            "Name: %s\n" +
-            "Type: %s\n" +
-            "Latitude: %.6f\n" +
-            "Longitude: %.6f\n" +
-            "Radius: %.0fm\n" +
-            "Description: %s\n" +
-            "Date Added: %s",
+        return String.format("""
+            ID: #%d
+            Name: %s
+            Type: %s
+            Latitude: %.6f
+            Longitude: %.6f
+            Radius: %.0fm
+            Description: %s
+            Date Added: %s
+            """,
             id, name, type, latitude, longitude, radius, description, dateAdded
         );
     }

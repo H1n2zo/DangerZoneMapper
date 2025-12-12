@@ -385,12 +385,12 @@ public class DangerZoneMappingApp extends Application {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Database Connection Error");
             alert.setHeaderText("Failed to connect to database");
-            alert.setContentText(
-                "Please ensure:\n" +
-                "1. MySQL/XAMPP is running\n" +
-                "2. Database 'danger_zone_db' exists\n" +
-                "3. Run database_setup.sql"
-            );
+            alert.setContentText("""
+                Please ensure:
+                1. MySQL/XAMPP is running
+                2. Database 'danger_zone_db' exists
+                3. Run database_setup.sql
+                """);
             alert.showAndWait();
         }
     }
@@ -402,14 +402,16 @@ public class DangerZoneMappingApp extends Application {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("About");
         alert.setHeaderText("Danger Zone Mapping System");
-        alert.setContentText(
-            "Version: 1.0\n" +
-            "Location: Ormoc City, Philippines\n\n" +
-            "This system helps identify and visualize areas\n" +
-            "vulnerable to natural hazards such as floods,\n" +
-            "landslides, fires, earthquakes, and typhoons.\n\n" +
-            "Developed for disaster preparedness and planning."
-        );
+        alert.setContentText("""
+            Version: 1.0
+            Location: Ormoc City, Philippines
+            
+            This system helps identify and visualize areas
+            vulnerable to natural hazards such as floods,
+            landslides, fires, earthquakes, and typhoons.
+            
+            Developed for disaster preparedness and planning.
+            """);
         alert.showAndWait();
     }
     
