@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch Danger Zone Mapping (Maven)",
+            "request": "launch",
+            "mainClass": "com.dangerzonemapper.DangerZoneMappingApp",
+            "projectName": "dangerzonemapping",
+            "vmArgs": "--module-path \"C:\\javafx-sdk-21\\lib\" --add-modules javafx.controls,javafx.fxml,javafx.graphics"
+        },
+        {
+            "type": "java",
+            "name": "Run with Maven Command",
+            "request": "launch",
+            "mainClass": "com.dangerzonemapper.DangerZoneMappingApp",
+            "projectName": "dangerzonemapping"
+        }
+    ]
+}

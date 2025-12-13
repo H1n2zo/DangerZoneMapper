@@ -5,17 +5,33 @@ import com.dangerzonemapper.model.HazardZone;
 import com.dangerzonemapper.ui.MapRenderer;
 import com.dangerzonemapper.ui.UIComponentFactory;
 import com.dangerzonemapper.utils.CoordinateUtils;
+
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
 
 /**
- * Main application class - now refactored and modular
+ * Main application class - now refactored and modular with FIXED LAYOUT
  */
 public class DangerZoneMappingApp extends Application {
     
@@ -51,12 +67,20 @@ public class DangerZoneMappingApp extends Application {
         mapRenderer = new MapRenderer(mapPane);
         hazardController = new HazardZoneController(mapRenderer);
         
-        // Build UI
+        // Build UI with proper layout
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #f5f5f5;");
         
         root.setTop(UIComponentFactory.createMenuBar(this::refreshMap, this::showAboutDialog, this::showSafetyGuidelines));
-        root.setCenter(createMapView());
+        
+        // Create center container that will hold the map properly
+        StackPane centerContainer = new StackPane();
+        centerContainer.setStyle("-fx-background-color: white;");
+        VBox mapView = createMapView();
+        centerContainer.getChildren().add(mapView);
+        StackPane.setAlignment(mapView, Pos.CENTER);
+        
+        root.setCenter(centerContainer);
         root.setRight(createControlPanel());
         root.setBottom(createStatusBar());
         
@@ -87,50 +111,63 @@ public class DangerZoneMappingApp extends Application {
     }
     
     /**
-     * Create the map view section
+     * Create the map view section - IMPROVED LAYOUT
      */
     private VBox createMapView() {
-        VBox mapBox = new VBox(8);
-        mapBox.setPadding(new Insets(8));
+        VBox mapBox = new VBox(10);
+        mapBox.setPadding(new Insets(15));
+        mapBox.setAlignment(Pos.CENTER);
         mapBox.setStyle("-fx-background-color: white;");
         
+        // Title and legend
         HBox titleBox = UIComponentFactory.createMapHeader();
+        titleBox.setPrefWidth(CoordinateUtils.getMapWidth());
+        titleBox.setMaxWidth(CoordinateUtils.getMapWidth());
         
+        // Coordinates label
         coordsLabel = new Label("Click on map to select a location for the hazard zone");
         coordsLabel.setFont(javafx.scene.text.Font.font("Arial", 11));
-        coordsLabel.setStyle("-fx-padding: 6; -fx-background-color: #fff3cd; -fx-border-color: #ffc107; -fx-border-width: 1;");
+        coordsLabel.setStyle("-fx-padding: 8; -fx-background-color: #fff3cd; -fx-border-color: #ffc107; " +
+                            "-fx-border-width: 1; -fx-border-radius: 3; -fx-background-radius: 3;");
+        coordsLabel.setPrefWidth(CoordinateUtils.getMapWidth());
+        coordsLabel.setMaxWidth(CoordinateUtils.getMapWidth());
+        coordsLabel.setAlignment(Pos.CENTER);
         
         mapBox.getChildren().addAll(titleBox, mapPane, coordsLabel);
+        
         return mapBox;
     }
     
     /**
-     * Create the control panel
+     * Create the control panel - IMPROVED LAYOUT
      */
     private VBox createControlPanel() {
-        VBox controlPanel = new VBox(10);
-        controlPanel.setPadding(new Insets(10));
-        controlPanel.setPrefWidth(300);
-        controlPanel.setStyle("-fx-background-color: #fafafa; -fx-border-color: #ccc; -fx-border-width: 0 0 0 2;");
+        VBox controlPanel = new VBox(12);
+        controlPanel.setPadding(new Insets(15));
+        controlPanel.setPrefWidth(320);
+        controlPanel.setMinWidth(320);
+        controlPanel.setMaxWidth(320);
+        controlPanel.setStyle("-fx-background-color: #fafafa; -fx-border-color: #ddd; -fx-border-width: 0 0 0 2;");
         
         // Title
-        Label titleLabel = UIComponentFactory.createLabel("Hazard Zone Manager", true, 14);
+        Label titleLabel = UIComponentFactory.createLabel("Hazard Zone Manager", true, 15);
+        titleLabel.setStyle("-fx-text-fill: #2196F3;");
         
         // Hazard type
-        Label typeLabel = UIComponentFactory.createLabel("Hazard Type:", true, 10);
+        Label typeLabel = UIComponentFactory.createLabel("Hazard Type:", true, 11);
         hazardTypeCombo = UIComponentFactory.createHazardTypeComboBox();
         hazardTypeCombo.setOnAction(e -> updateRadiusCircle());
         
         // Location name
-        Label nameLabel = UIComponentFactory.createLabel("Location Name:", true, 10);
+        Label nameLabel = UIComponentFactory.createLabel("Location Name:", true, 11);
         nameField = UIComponentFactory.createTextField("e.g., Downtown Area, Barangay...");
         
         // Description
-        Label descLabel = UIComponentFactory.createLabel("Description:", true, 10);
+        Label descLabel = UIComponentFactory.createLabel("Description:", true, 11);
         descriptionArea = UIComponentFactory.createTextArea("Enter hazard details...", 3);
         
         // Radius slider
-        Label radiusLabel = UIComponentFactory.createLabel("Hazard Radius: 500m", true, 10);
+        Label radiusLabel = UIComponentFactory.createLabel("Hazard Radius: 500m", true, 11);
         radiusSlider = UIComponentFactory.createRadiusSlider();
         radiusSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             radiusLabel.setText(String.format("Hazard Radius: %.0fm", newVal.doubleValue()));
@@ -138,27 +175,31 @@ public class DangerZoneMappingApp extends Application {
         });
         
         // Selected coordinates display
-        Label coordsDisplayLabel = UIComponentFactory.createLabel("Selected Location:", true, 10);
+        Label coordsDisplayLabel = UIComponentFactory.createLabel("Selected Location:", true, 11);
         selectedCoordsLabel = new Label("Click map to select");
-        selectedCoordsLabel.setStyle("-fx-text-fill: #2196F3; -fx-font-size: 10px;");
+        selectedCoordsLabel.setStyle("-fx-text-fill: #2196F3; -fx-font-size: 10px; -fx-font-style: italic;");
         
         // Buttons
         HBox buttonBox = new HBox(8);
-        Button addButton = UIComponentFactory.createButton("Add Hazard", "#4CAF50", 130);
+        buttonBox.setAlignment(Pos.CENTER);
+        Button addButton = UIComponentFactory.createButton("Add Hazard", "#4CAF50", 150);
         addButton.setOnAction(e -> addHazardZone());
         
-        Button clearButton = UIComponentFactory.createButton("Clear", "#9E9E9E", 70);
+        Button clearButton = UIComponentFactory.createButton("Clear", "#9E9E9E", 85);
         clearButton.setOnAction(e -> clearSelection());
         
         buttonBox.getChildren().addAll(addButton, clearButton);
         
         Separator separator = new Separator();
+        separator.setStyle("-fx-padding: 5 0 5 0;");
         
         // Hazard list
-        Label listLabel = UIComponentFactory.createLabel("Existing Hazard Zones:", true, 11);
+        Label listLabel = UIComponentFactory.createLabel("Existing Hazard Zones:", true, 12);
+        listLabel.setStyle("-fx-text-fill: #2196F3;");
+        
         hazardListView = new ListView<>();
-        hazardListView.setPrefHeight(160);
-        hazardListView.setStyle("-fx-font-size: 10px;");
+        hazardListView.setPrefHeight(180);
+        hazardListView.setStyle("-fx-font-size: 10px; -fx-border-color: #ddd; -fx-border-width: 1;");
         hazardListView.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
                 viewHazardDetails();
@@ -166,19 +207,20 @@ public class DangerZoneMappingApp extends Application {
         });
         
         HBox listButtonBox = new HBox(8);
-        Button viewButton = UIComponentFactory.createButton("View", "#2196F3", 100);
+        listButtonBox.setAlignment(Pos.CENTER);
+        Button viewButton = UIComponentFactory.createButton("View Details", "#2196F3", 120);
         viewButton.setOnAction(e -> viewHazardDetails());
         
-        Button deleteButton = UIComponentFactory.createButton("Delete", "#f44336", 80);
+        Button deleteButton = UIComponentFactory.createButton("Delete", "#f44336", 95);
         deleteButton.setOnAction(e -> deleteSelectedHazard());
         
         listButtonBox.getChildren().addAll(viewButton, deleteButton);
         
-        // Put everything in a scroll pane
-        ScrollPane scrollPane = new ScrollPane();
-        VBox content = new VBox(10);
+        // Main content container
+        VBox content = new VBox(12);
         content.getChildren().addAll(
-            titleLabel, new Separator(),
+            titleLabel, 
+            new Separator(),
             typeLabel, hazardTypeCombo,
             nameLabel, nameField,
             descLabel, descriptionArea,
@@ -189,10 +231,12 @@ public class DangerZoneMappingApp extends Application {
             listLabel, hazardListView, listButtonBox
         );
         
-        scrollPane.setContent(content);
+        // Wrap in scroll pane for overflow
+        ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent;");
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         scrollPane.setPadding(new Insets(5));
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
         
         VBox wrapper = new VBox(scrollPane);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
@@ -205,11 +249,11 @@ public class DangerZoneMappingApp extends Application {
      */
     private HBox createStatusBar() {
         HBox statusBar = new HBox();
-        statusBar.setPadding(new Insets(4, 10, 4, 10));
+        statusBar.setPadding(new Insets(5, 15, 5, 15));
         statusBar.setStyle("-fx-background-color: #2196F3;");
         
         statusLabel = new Label("Ready | Total Zones: 0");
-        statusLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10px;");
+        statusLabel.setStyle("-fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold;");
         
         statusBar.getChildren().add(statusLabel);
         return statusBar;
