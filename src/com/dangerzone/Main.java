@@ -159,14 +159,16 @@ public class Main extends Application {
         Button landmarksBtn = createSmallNavButton("📍", "Landmarks");
         Button hazardsBtn = createSmallNavButton("⚠", "Hazards");
         Button incidentsBtn = createSmallNavButton("📋", "Incidents");
+        Button safetyGuidelinesBtn = createSmallNavButton("🚨", "Guidelines");
         Button searchBtn = createSmallNavButton("🔍", "Search");
-        
+
         landmarksBtn.setOnAction(e -> openLandmarkManager());
         hazardsBtn.setOnAction(e -> openHazardManager());
         incidentsBtn.setOnAction(e -> openIncidentManager());
+        safetyGuidelinesBtn.setOnAction(e -> openSafetyGuidelinesManager());
         searchBtn.setOnAction(e -> openGlobalSearch());
-        
-        adminSection.getChildren().addAll(adminLabel, landmarksBtn, hazardsBtn, incidentsBtn, searchBtn);
+
+        adminSection.getChildren().addAll(adminLabel, landmarksBtn, hazardsBtn, incidentsBtn, safetyGuidelinesBtn, searchBtn);
         
         sidebar.getChildren().addAll(logoSection, navButtons, spacer, adminSection);
         
@@ -883,6 +885,14 @@ private VBox createMapView() {
     private void openIncidentManager() {
         try {
             new IncidentManagerDialog(DatabaseConnection.getConnection()).show();
+        } catch (SQLException ex) {
+            showErrorAlert("Failed to connect: " + ex.getMessage());
+        }
+    }
+
+    private void openSafetyGuidelinesManager() {
+        try {
+            new SafetyGuidelineManagerDialog(DatabaseConnection.getConnection()).show();
         } catch (SQLException ex) {
             showErrorAlert("Failed to connect: " + ex.getMessage());
         }
