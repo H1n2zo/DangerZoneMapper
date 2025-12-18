@@ -407,50 +407,55 @@ private VBox createMapView() {
         return container;
     }
     
-    private HBox createUltraCompactLegend() {
-        HBox legend = new HBox(10); // Reduced spacing
-        legend.setAlignment(Pos.CENTER);
-        legend.setPadding(new Insets(5, 10, 5, 10)); // Minimal padding
-        legend.setStyle("-fx-background-color: white; " +
-                       "-fx-border-color: " + StyleManager.BORDER_COLOR + "; " +
-                       "-fx-border-width: 1; -fx-border-radius: 6; " +
-                       "-fx-background-radius: 6; " +
-                       "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 3, 0, 0, 1);");
+private HBox createUltraCompactLegend() {
+    HBox legend = new HBox(10); // Reduced spacing
+    legend.setAlignment(Pos.CENTER);
+    legend.setPadding(new Insets(5, 10, 5, 10)); // Minimal padding
+    legend.setStyle("-fx-background-color: white; " +
+                   "-fx-border-color: " + StyleManager.BORDER_COLOR + "; " +
+                   "-fx-border-width: 1; -fx-border-radius: 6; " +
+                   "-fx-background-radius: 6; " +
+                   "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 3, 0, 0, 1);");
 
-        Label legendTitle = new Label("LEGEND:");
-        legendTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; " +
-                            "-fx-text-fill: " + StyleManager.TEXT_PRIMARY + ";");
-        
-        legend.getChildren().addAll(
-            legendTitle,
-            createMiniLegendItem("📍", StyleManager.ACCENT_COLOR),
-            createMiniLegendItem("🏥", StyleManager.SUCCESS_COLOR),
-            createMiniLegendItem("🔴", StyleManager.DANGER_COLOR),
-            createMiniLegendItem("🟠", StyleManager.WARNING_COLOR),
-            createMiniLegendItem("🟡", "#f1c40f"),
-            createMiniLegendItem("⚪", "#95a5a6")
-        );
-        
-        return legend;
-    }    
+    Label legendTitle = new Label("LEGEND:");
+    legendTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; " +
+                        "-fx-text-fill: " + StyleManager.TEXT_PRIMARY + ";");
+    
+    legend.getChildren().addAll(
+        legendTitle,
+        createMiniLegendItem("📍", StyleManager.ACCENT_COLOR, "Landmark"),
+        createMiniLegendItem("🏥", StyleManager.SUCCESS_COLOR, "Evacuation Center"),
+        createMiniLegendItem("🔴", StyleManager.DANGER_COLOR, "Critical Hazard"),
+        createMiniLegendItem("🟠", StyleManager.WARNING_COLOR, "High Hazard"),
+        createMiniLegendItem("🟡", "#f1c40f", "Medium Hazard"),
+        createMiniLegendItem("⚪", "#95a5a6", "Low Hazard")
+    );
+    
+    return legend;
+} 
 
-    private HBox createMiniLegendItem(String icon, String color) {
-        HBox item = new HBox(3); // Minimal spacing
-        item.setAlignment(Pos.CENTER);
-        
-        Region colorBox = new Region();
-        colorBox.setPrefSize(12, 12); // Smaller boxes
-        colorBox.setStyle("-fx-background-color: " + color + "; " +
-                         "-fx-border-color: white; " +
-                         "-fx-border-width: 1.5; -fx-border-radius: 2; " +
-                         "-fx-background-radius: 2;");
-        
-        Label iconLabel = new Label(icon);
-        iconLabel.setStyle("-fx-font-size: 10px;"); // Smaller font
-        
-        item.getChildren().addAll(colorBox, iconLabel);
-        return item;
-    }
+private HBox createMiniLegendItem(String icon, String color, String label) {
+    HBox item = new HBox(3); // Minimal spacing
+    item.setAlignment(Pos.CENTER);
+    
+    Region colorBox = new Region();
+    colorBox.setPrefSize(12, 12); // Smaller boxes
+    colorBox.setStyle("-fx-background-color: " + color + "; " +
+                     "-fx-border-color: white; " +
+                     "-fx-border-width: 1.5; -fx-border-radius: 2; " +
+                     "-fx-background-radius: 2;");
+    
+    Label iconLabel = new Label(icon);
+    iconLabel.setStyle("-fx-font-size: 10px;"); // Smaller font
+    
+    // ADD TEXT LABEL
+    Label textLabel = new Label(label);
+    textLabel.setStyle("-fx-font-size: 9px; " +
+                      "-fx-text-fill: " + StyleManager.TEXT_PRIMARY + ";");
+    
+    item.getChildren().addAll(colorBox, iconLabel, textLabel);
+    return item;
+}
 
     private void loadMapWithOverlays(com.dangerzone.models.Map map, VBox container, 
                                      CheckBox showLandmarks, CheckBox showHazards) {
