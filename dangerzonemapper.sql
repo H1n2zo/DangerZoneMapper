@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 15, 2025 at 11:31 PM
+-- Generation Time: Dec 18, 2025 at 04:31 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -37,6 +37,46 @@ CREATE TABLE `audit_log` (
   `new_values` text DEFAULT NULL,
   `timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `emergency_contacts`
+--
+
+CREATE TABLE `emergency_contacts` (
+  `contact_id` int(11) NOT NULL,
+  `contact_name` varchar(100) NOT NULL,
+  `organization` varchar(100) DEFAULT NULL,
+  `contact_type` varchar(50) NOT NULL,
+  `phone_number` varchar(20) DEFAULT NULL,
+  `hotline` varchar(20) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `barangay` varchar(100) DEFAULT NULL,
+  `availability` varchar(100) DEFAULT '24/7',
+  `priority_order` int(11) DEFAULT 3,
+  `is_active` tinyint(1) DEFAULT 1,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `last_updated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `emergency_contacts`
+--
+
+INSERT INTO `emergency_contacts` (`contact_id`, `contact_name`, `organization`, `contact_type`, `phone_number`, `hotline`, `email`, `address`, `barangay`, `availability`, `priority_order`, `is_active`, `notes`, `created_at`, `last_updated`) VALUES
+(1, 'National Emergency Hotline', 'Government', 'Emergency', NULL, '911', NULL, NULL, NULL, '24/7', 1, 1, 'All emergencies', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(2, 'CDRRMO Ormoc City', 'City Disaster Risk Reduction Management Office', 'CDRRMO', '(053) 561-5027', '(053) 561-5027', NULL, NULL, NULL, '24/7', 1, 1, 'Main disaster response office', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(3, 'Ormoc City Fire Station', 'Bureau of Fire Protection', 'Fire', '(053) 561-2222', '(053) 561-2222', NULL, NULL, NULL, '24/7', 1, 1, 'Fire emergencies', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(4, 'Ormoc City Police Station', 'Philippine National Police', 'Police', '(053) 561-3333', '(053) 561-3333', NULL, NULL, NULL, '24/7', 1, 1, 'Police emergencies', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(5, 'Ormoc District Hospital', 'Department of Health', 'Hospital', '(053) 255-2316', NULL, NULL, NULL, NULL, '24/7', 1, 1, 'Emergency medical services', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(6, 'Farmers Medical Center', 'Private Hospital', 'Medical', '(053) 561-5281', NULL, NULL, NULL, NULL, '24/7', 2, 1, 'Medical emergencies', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(7, 'Philippine Red Cross Ormoc', 'Red Cross', 'Rescue', '(053) 561-4891', NULL, NULL, NULL, NULL, '24/7', 2, 1, 'Rescue and disaster response', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(8, 'Ormoc City Health Office', 'City Government', 'Medical', '(053) 561-6789', NULL, NULL, NULL, NULL, '8:00 AM - 5:00 PM', 3, 1, 'Public health services', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(9, 'Coast Guard Ormoc', 'Philippine Coast Guard', 'Rescue', '(053) 561-7890', NULL, NULL, NULL, NULL, '24/7', 2, 1, 'Maritime emergencies', '2025-12-18 03:30:09', '2025-12-18 03:30:09'),
+(10, 'PAGASA Weather Station', 'Philippine Atmospheric Agency', 'Government', '(053) 561-8901', NULL, NULL, NULL, NULL, '24/7', 2, 1, 'Weather updates and warnings', '2025-12-18 03:30:09', '2025-12-18 03:30:09');
 
 -- --------------------------------------------------------
 
@@ -77,7 +117,7 @@ INSERT INTO `hazard_zones` (`zone_id`, `zone_name`, `barangay`, `hazard_type`, `
 (2, 'Bao River Corridor', 'Bao', 'Flood', 'High', 11.02500000, 124.61500000, 2500, 'Prone to flash floods during heavy rainfall.', NULL, 5000, 'Flood control structures, tree planting', 'Rain gauge monitoring', '2011-06-15', NULL, NULL, NULL, NULL, '2025-11-03 12:44:32', 1, NULL),
 (3, 'Donghol River Area', 'Donghol', 'Landslide', 'High', 11.08000000, 124.64000000, 2000, 'Steep slopes along river banks. Landslide susceptible.', NULL, 3500, 'Slope stabilization, reforestation', 'Ground movement sensors', '2013-11-08', NULL, NULL, NULL, NULL, '2025-11-03 12:44:32', 1, NULL),
 (4, 'Can-adieng Uplands', 'Can-adieng', 'Landslide', 'Critical', 11.09500000, 124.68500000, 1800, 'Mountainous terrain with history of landslides.', NULL, 2000, 'Retaining walls, drainage improvement', 'Visual inspection schedule', '2013-11-08', NULL, NULL, NULL, NULL, '2025-11-03 12:44:32', 1, NULL),
-(5, 'Coastal Barangays Zone', 'Cogon Combado', 'Storm Surge', 'High', 11.03500000, 124.58500000, 4000, 'Coastal areas vulnerable to storm surge during typhoons.', NULL, 6500, 'Mangrove planting, seawall construction', 'Typhoon tracking system', '2013-11-08', NULL, NULL, NULL, NULL, '2025-11-03 12:44:32', 1, NULL),
+(5, 'Coastal Barangays Zone', 'Cogon Combado', 'Storm Surge', 'Low', 11.17968961, 124.59291667, 4000, 'Coastal areas vulnerable to storm surge during typhoons.', NULL, 6500, 'Mangrove planting, seawall construction', 'Typhoon tracking system', '2013-11-08', NULL, NULL, NULL, NULL, '2025-12-18 02:46:41', 1, NULL),
 (6, 'Downtown Commercial District', 'District 26', 'Fire', 'Medium', 11.00590000, 124.60750000, 800, 'Dense commercial area. Fire risk due to building proximity.', NULL, 4000, 'Fire hydrants, fire breaks, awareness campaigns', 'Fire detection system', '2015-03-20', NULL, NULL, NULL, NULL, '2025-11-03 12:44:32', 1, NULL),
 (7, 'Alta Vista Subdivision', 'Alta Vista', 'Landslide', 'Medium', 11.02000000, 124.63000000, 1500, 'Hillside residential area. Soil erosion concerns.', NULL, 2500, 'Proper drainage, slope terracing', 'Regular monitoring', '2016-07-12', NULL, NULL, NULL, NULL, '2025-11-03 12:44:32', 1, NULL);
 
@@ -308,6 +348,12 @@ ALTER TABLE `audit_log`
   ADD KEY `idx_audit_timestamp` (`timestamp`);
 
 --
+-- Indexes for table `emergency_contacts`
+--
+ALTER TABLE `emergency_contacts`
+  ADD PRIMARY KEY (`contact_id`);
+
+--
 -- Indexes for table `hazard_zones`
 --
 ALTER TABLE `hazard_zones`
@@ -383,6 +429,12 @@ ALTER TABLE `user_activity`
 --
 ALTER TABLE `audit_log`
   MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `emergency_contacts`
+--
+ALTER TABLE `emergency_contacts`
+  MODIFY `contact_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `hazard_zones`
